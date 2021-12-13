@@ -1,4 +1,4 @@
-function [model_modi1] = FBAwEB_random(species,model_name,biomass_excel_name,number_of_biomass,starting_point,name,FVAoption);
+function [model_modi1] = FBAwEB(species,model_name,biomass_excel_name,number_of_biomass,starting_point,name,FVAoption);
 %%%%%%%%%%%%% species = available to "CHO", "ECOLI", "YEAST" %%%%%%%%%%%%%
 
 model_modi = model_name;
