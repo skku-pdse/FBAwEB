@@ -1,8 +1,3 @@
-# 수정사항
-# 1. Carbohydrate 삭제
-
-
-
 #-*-coding:utf-8-*-
 import pandas as pd
 from pandas import ExcelWriter
@@ -18,7 +13,7 @@ class makeBiomass():
     def __init__(self, file2read ):
         date = datetime.now().strftime("%b%d %H;%M")
         self.file2read=file2read
-        self.file2save='Ecoli_+-25% biomass_generation_{}.xlsx'.format(date)
+        self.file2save='Ecoli_macro_+-25% biomass_{}.xlsx'.format(date)
 
         # if path.isfile(file2save) == True :
         #     self.file2save=file2save + "(1)"
