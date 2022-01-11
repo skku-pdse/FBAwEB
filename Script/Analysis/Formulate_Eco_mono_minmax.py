@@ -7,15 +7,15 @@ import numpy as np
 import os.path as path
 
 
-
 class makeBiomass():
 
     def __init__(self, filename):
         date = datetime.now().strftime("%b%d %H;%M")
         self.filename = filename
-        self.file2save = 'Ecoli_mono_+-25% biomass_{}.xlsx'.format(date)
-        if path.isfile(file2save) == True :
-            self.file2save=file2save + "(1)"
+        saveDir="RandomBiomassExcel"
+        Path(saveDir).mkdir(parents=True,exist_ok=True)
+        savefile = 'Ecoli_mono_+-25% biomass_{}.xlsx'.format(date)
+        self.file2save=os.path.join(saveDir,savefile)
         # self.filetoSave=filetoSave
 
     def processBiomassFrame(self,df,in_or_out):
