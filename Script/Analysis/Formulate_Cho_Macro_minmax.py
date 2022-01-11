@@ -8,10 +8,10 @@ import numpy as np
 
 class makeBiomass():
 
-    def __init__(self, file2read ,file2save):
+    def __init__(self, file2read):
         date = datetime.now().strftime("%b%d %H;%M")
         self.file2read=file2read
-        self.file2save=file2save.format(date)
+        self.file2save='Cho_macro_+-25% biomass_{}.xlsx''.format(date)
 
     def processBiomassFrame(self, df, in_or_out):
         self.df = df
@@ -535,9 +535,8 @@ class makeBiomass():
 
 
 if __name__ == '__main__':
-    # file2read="*** for python.xlsx"
-    #file2save= 'name.xlsx'
-    a=makeBiomass(file2read=file2read,file2save=file2save)
+    # file2read=testfile1
+    a=makeBiomass(file2read=file2read)
     b=a.Formulate_min_max()
 
 
