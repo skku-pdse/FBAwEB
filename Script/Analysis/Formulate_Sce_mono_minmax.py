@@ -10,10 +10,10 @@ import operator
 
 class makeBiomass():
 
-    def __init__(self, filename,file2save):
+    def __init__(self, filename):
         date = datetime.now().strftime("%b%d %H;%M")
         self.filename = filename
-        self.file2save=file2save.format(date)
+        self.file2save='Yeast_mono_+-25% biomass_{}.xlsx'.format(date)
         if path.isfile(self.file2save) == True :
             self.file2save=file2save.format(date + "(1)")
 
@@ -502,6 +502,6 @@ class makeBiomass():
 if __name__ == '__main__':
     # filename='&&& for python.xlsx'
     # file2save='name.xlsx'
-    a = makeBiomass(filename=filenmae, file2save=file2save)
+    a = makeBiomass(filename=filenmae)
     b = a.RandomBiomass()
 
