@@ -8,11 +8,11 @@ import numpy as np
 
 class makeBiomass():
 
-    def __init__(self, filename,file2save):
+    def __init__(self, filename):
         date = datetime.now().strftime("%b%d %H;%M")
         self.filename=filename
-        self.file2save=file2save.format(date)
-        # self.filetoSave=filetoSave
+        self.file2save='Cho_mono_+-25% biomass_{}.xlsx'.format(date)
+        
 
     def processBiomassFrame(self, df, in_or_out):
         self.df = df
@@ -594,9 +594,8 @@ class makeBiomass():
 
 
 if __name__ == '__main__':
-    #filename='&&& for python.xlsx'
-    #file2save='name.xlsx'
-    a=makeBiomass(filename=filenmae, file2save=file2save)
+    #filename=testfile1
+    a=makeBiomass(filename=filename)
     b=a.RandomBiomass()
 
 
