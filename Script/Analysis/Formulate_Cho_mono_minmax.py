@@ -11,8 +11,10 @@ class makeBiomass():
     def __init__(self, filename):
         date = datetime.now().strftime("%b%d %H;%M")
         self.filename=filename
-        self.file2save='Cho_mono_+-25% biomass_{}.xlsx'.format(date)
-        
+        saveDir="RandomBiomassExcel"
+        Path(saveDir).mkdir(parents=True,exist_ok=True)
+        savefile = 'Cho_mono_+-25% biomass_{}.xlsx'.format(date)
+        self.file2save=os.path.join(saveDir,savefile)
 
     def processBiomassFrame(self, df, in_or_out):
         self.df = df
