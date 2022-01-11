@@ -7,7 +7,6 @@ import numpy as np
 import os.path as path
 
 
-
 class makeBiomass():
 
     def __init__(self, file2read ):
@@ -15,8 +14,9 @@ class makeBiomass():
         self.file2read=file2read
         saveDir="RandomBiomassExcel"
         Path(saveDir).mkdir(parents=True,exist_ok=True)
-        self.file2save=os.path.join(saveDir,'Ecoli_macro_+-25% biomass_{}.xlsx'.format(date))
-
+        savefile = 'Ecoli_macro_+-25% biomass_{}.xlsx'.format(date)
+        self.file2save=os.path.join(saveDir,savefile)
+    
     def processBiomassFrame(self, df, in_or_out):
         self.df = df
         self.in_or_out = in_or_out
