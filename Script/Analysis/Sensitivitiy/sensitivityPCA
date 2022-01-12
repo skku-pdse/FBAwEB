@@ -1,0 +1,126 @@
+import pandas as pd
+import numpy as np
+from datetime import  datetime
+from pandas import ExcelWriter
+import matplotlib.pyplot as plt
+import os
+from sklearn.decomposition import PCA
+
+class seaborn_mean() :
+
+    def __init__(self, file2read, sheet_name):
+        date = datetime.now().strftime("%b%d %H;%M")
+        self.file2read= file2read
+        self.sheet_name=sheet_name
+        self.file2save = "PCA_result_" + "{}_".format(date) + file2read[file2read.rfind("\\")+1:file2read.find(".")] + ".xlsx"
+
+
+    def run(self,sheet_name):
+        flux_dist = pd.read_excel(file2read, sheet_name=sheet_name, convert_float=True)
+
+        # flux_dist= flux_dist.drop(flux_dist.index[0])
+
+        # flux_dist = flux_dist.reset_index(drop=True)
+        nameList = flux_dist.columns.values.tolist()
+        x = flux_dist.loc[:, nameList[1:]].values
+        norm_X = x
+        for x_i in range(len(flux_dist.columns)-1):
+            norm_X[:,x_i] = x[:,x_i] - x[:,x_i].mean()
+            norm_X[:,x_i] = abs(norm_X[:,x_i])
+            norm_X[:,x_i] = norm_X[:,x_i] / x[:,x_i].std()
+
+        norm_X = np.nan_to_num(norm_X, copy=True, posinf=0, neginf=0)
+
+
+        y = flux_dist.loc[:, ['Unnamed: 0']].values
+        pca = PCA(n_components=2)
+        principalComponents = pca.fit_transform(norm_X)
+        per_var = np.round(pca.explained_variance_ratio_ * 100, decimals=1)
+        principalDf = pd.DataFrame(data=principalComponents, columns=['principal component 1', 'principal component 2'])
+
+        finalDataFrame = pd.concat([principalDf, flux_dist.iloc[:,0]], axis=1)
+        # pd.DataFrame(finalDataFrame).to_excel(ExcelWriter,sheet_name="PC1&2",)
+        labels = []
+        yList = y.tolist()
+        for label in yList:
+            if label[0] not in labels:
+                labels.append(label[0])
+
+        #Label order change
+        labels_2=labels.copy()
+        labels[1]=labels_2[2]
+        labels[2] = labels_2[1]
+        labels=labels_2[4:-1]+labels[0:4]+[labels_2[-1]]
+        print (labels)
+        # labels
+        """['AA_var','RNA_var','DNA_var','LIPID_var']"""
+        fig = plt.figure(figsize=(8, 8))
+        ax = fig.add_subplot(1, 1, 1)
+        ax.set_xlabel('PC1 - {0}%'.format(per_var[0]), fontsize=30)
+        ax.set_ylabel('PC2 - {0}%'.format(per_var[1]), fontsize=30)
+        # ax.set_title('Two Component PCA', fontsize=50)
+
+        # colors = {"REF":'#386cb0', "AA_monomer":'#F15A22','RNA_monomer':'#00A875' ,'DNA_monomer':'#00B9F1',
+        #            'Carbohydrate':'#DA6FAB','FA_monomer':'#FFD801','Protein':'#f12222','DNA':'#0000f1','RNA':'#007516','Lipid':'#FFBF00'}
+        facecol = {"REF": 'black', "AA_monomer": 'None', 'RNA_monomer': 'None', 'DNA_monomer': 'None',
+                  'Carbohydrate': '#DA6FAB', 'FA_monomer': 'None', 'Protein': '#F15A22', 'DNA': '#00B9F1',
+                  'RNA': '#00A875', 'Lipid': '#FFBF00'}
+        edgecol = {"REF":'black', "AA_monomer":'#F15A22','RNA_monomer':'#00A875' ,'DNA_monomer':'#00B9F1',
+                   'Carbohydrate':'#DA6FAB','FA_monomer':'#FFBF00','Protein':'#F15A22','DNA':'#00B9F1','RNA':'#00A875','Lipid':'#FFBF00'}
+        mark = {"AA_monomer": "o", 'RNA_monomer': "o", 'DNA_monomer': "o",
+                  'Carbohydrate': "o", 'FA_monomer': "o", 'Protein': "o", 'DNA': "o",
+                  'RNA': "o", 'Lipid': "o", 'REF': "X"}
+        for key in labels:
+            indicesToKeep = finalDataFrame['Unnamed: 0'] == key
+            # ax.scatter(finalDataFrame.loc[indicesToKeep, 'principal component 1']
+            #            , finalDataFrame.loc[indicesToKeep, 'principal component 2']
+            #            , label = key
+            #            , c=colors[key]
+            #            , marker = mark[key]
+            #            , s=150)
+            ax.scatter(finalDataFrame.loc[indicesToKeep, 'principal component 1']
+                       , finalDataFrame.loc[indicesToKeep, 'principal component 2']
+                       , label = key
+                       , facecolors=facecol[key]
+                       , edgecolors=edgecol[key]
+                       , marker = mark[key]
+                       , alpha = 0.8
+                       , s=150)
+
+        # ax.legend(labels)
+        # ax.legend(framealpha=1)
+        yabs_max = abs(max(ax.get_ylim(), key=abs))
+        xabs_max = abs(max(ax.get_xlim(), key=abs))
+        ax.set_ylim(ymin=-yabs_max, ymax=yabs_max)
+        ax.set_xlim(xmin=-xabs_max, xmax=xabs_max)
+        ax.grid()
+        plt.show()
+
+        fig_dir = 'PCA_figure'
+        if not os.path.exists(fig_dir):
+            os.makedirs(fig_dir)
+            print("Directory ", fig_dir, " Created ")
+        fig_file=os.path.join(fig_dir,self.file2save[:self.file2save.rfind('.')]+'.png')
+        fig_file = self.file2save[:self.file2save.rfind('.')] + '.png'
+        fig.savefig(fig_file,dpi=300)
+
+        with ExcelWriter(self.file2save, engine='xlsxwriter') as writer:
+            flux_dist.to_excel(writer, sheet_name="Flux without outliers")
+            finalDataFrame.to_excel(writer, sheet_name="PCA_result")
+            pd.DataFrame({"Figure":[]}).to_excel(writer, sheet_name="PCA_figure")
+            writer.sheets["PCA_figure"].insert_image("B2",fig_file)
+            writer.save()
+            writer.close()
+
+
+
+
+if __name__ == '__main__':
+    PCA_processed = r"C:\Users\cdh93\Desktop\OneDrive - 성균관대학교\july_PCA\PCA_result_nov"
+    PCAfilelist= os.listdir(PCA_processed)
+    for PCA_f in PCAfilelist:
+        file2read= os.path.join(PCA_processed,PCA_f)
+        a=seaborn_mean(file2read=file2read, sheet_name="Flux without outliers")
+        b=a.run(sheet_name="Flux without outliers")
+ 
+
