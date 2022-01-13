@@ -456,14 +456,14 @@ class makeBiomass():
         return BIOMASSsyn
 
 
-
-if __name__ == '__main__':
-    # file2read=testfile1
-    fileloc = r'C:\Users\yoonmi\OneDrive - 성균관대학교\Research\Project\2020 Biomass\Supplementary file\FBAwEB script\test'
-    filename = fileloc + '\Cho test1.xlsx'
-
-    a = makeBiomass(file2read=filename)
-    b = a.Formulate_min_max()
+#
+# if __name__ == '__main__':
+#     # file2read=testfile1
+#     fileloc = ''
+#     filename = fileloc + '\Cho test1.xlsx'
+#
+#     a = makeBiomass(file2read=filename)
+#     b = a.Formulate_min_max()
 
 
 

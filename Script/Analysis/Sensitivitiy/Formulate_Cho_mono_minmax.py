@@ -218,7 +218,7 @@ class makeBiomass():
                 for min_or_max in ["min", "max"]:
                     RNA_norm = (RNA_comp_pd["mean"]) / TOTAL_1 * (1 - RNA_comp_pd[min_or_max][RNA_i])
                     RNA_norm[RNA_i] = RNA_comp_pd[min_or_max][RNA_i]
-                    minmax_col = "RNAcoeff_" + str(RNA_comp_pd["g/g RNA"][RNA_i]) + "_" + str(min_or_max)
+                    minmax_col = "RNAcoeff_" + str(RNA_comp_pd["Reactant"][RNA_i]) + "_" + str(min_or_max)
                     RNA_comp_pd[minmax_col] = RNA_norm
                     RNA_comp_pd.at[4, minmax_col] = RNA_comp_pd[minmax_col][:4].sum()
 
@@ -416,12 +416,12 @@ class makeBiomass():
 
 
 
-# if __name__ == '__main__':
-    # fileloc = ''
-    # filename = fileloc + '\Cho test1.xlsx'
-    #
-    # a = makeBiomass(filename=filename)
-    # b = a.Formulate_min_max()
+if __name__ == '__main__':
+    fileloc = r'C:\Users\yoonmi\OneDrive - 성균관대학교\Research\Project\2020 Biomass\Supplementary file\FBAwEB script\test'
+    filename = fileloc + '\Cho test1.xlsx'
+
+    a = makeBiomass(filename=filename)
+    b = a.Formulate_min_max()
 
 
 
