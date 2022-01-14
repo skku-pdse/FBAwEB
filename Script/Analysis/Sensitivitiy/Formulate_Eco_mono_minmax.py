@@ -217,42 +217,29 @@ class makeBiomass():
             RNApd = pd.read_excel(self.filename, sheet_name=DNA_or_RNA + "syn", usecols="A:H", convert_float=True)
             RNAin = self._processBiomassFrame(df=RNApd,in_or_out=-1)
 
-            RNA_comp_pd = RNAin.iloc[:,:-1]
-            RNA_comp_pd["mean"] = RNA_comp_pd["g/g RNA"]
-            RNA_comp_pd.at[4, "mean"] = RNA_comp_pd["mean"][:4].sum(axis=0)
-            RNA_comp_pd["mean"] = RNA_comp_pd["mean"] / RNA_comp_pd["mean"][4]
-            # ecoli_max_rna_cv
+            RNA_comp_pd = RNAin.iloc[:, :-1]
+            RNA_comp_pd["mean"] = RNA_comp_pd['g/g RNA']
+
+            for coeff_i in range(len(RNA_comp_pd)):
+                gpergP = RNAin.iloc[coeff_i, 0]
+                MW = RNAin.iloc[coeff_i, 1]
+                RNAin.at[coeff_i, "mmol/gDCW"] = wt_per_DCW * gpergP / MW * 1000
+
+            RNAout = self._processBiomassFrame(df=RNApd, in_or_out=1)
+            for k_i, k in enumerate(RNAout['Product']):
+                if k.lower() in ['ppi', 'pi']:
+                    RNAout.at[k_i, "mmol/gDCW.1"] = RNAin['mmol/gDCW'].sum()
+            RNAsyn_ref = self._returnSynthesisEquation(df_in=RNAin, df_out=RNAout)
+            RNAorDNA_Dict['ref'] = RNAsyn_ref
+
             max_cv = 0.25
             RNA_comp_pd["min"] = RNA_comp_pd["mean"][:4] - (max_cv * RNA_comp_pd["mean"][:4])
             RNA_comp_pd["max"] = RNA_comp_pd["mean"][:4] + (max_cv * RNA_comp_pd["mean"][:4])
 
-            RNA_norm_ref = (RNA_comp_pd["mean"])/RNA_comp_pd["mean"][0:4].sum()
-            mean_col="RNA_coeff_" + "mean"
-            RNA_comp_pd[mean_col]=RNA_norm_ref
-            RNA_comp_pd.at[4,mean_col] = RNA_comp_pd[mean_col][:4].sum()
-            recal_RNA_ref=RNA_comp_pd.filter(like="RNA_coeff_mean",axis=1)
-
-            for coeff_i in range(len(RNAin)):
-                gpergP = recal_RNA_ref.iloc[coeff_i, 0]
-
-                MW = RNAin.iloc[coeff_i, 1]
-                RNAin.at[coeff_i, "mmol/gDCW"] = wt_per_DCW * gpergP / MW * 1000
-
-            # RNA out
-            RNAout = self._processBiomassFrame(df=RNApd,in_or_out=1)
-
-            # ppi
-            RNAout.at[0, "mmol/gDCW.1"] = RNAin.iloc[:, 4].sum(axis=0)
-
-            # PROTEIN BIOMASS
-            RNAsyn_ref = self._returnSynthesisEquation(df_in=RNAin,df_out=RNAout)
-            RNAorDNA_Dict["ref"] = RNAsyn_ref
-
-
-            for RNA_i in range(len(RNA_comp_pd) - 1):
-                lp_num_range = range(len(RNA_comp_pd) - 1)
-                lp_num_list = [x for i, x in enumerate(lp_num_range) if i != RNA_i]
-                TOTAL_1 = RNA_comp_pd["mean"][lp_num_list].sum()
+            for RNA_i in range(4):
+                RNA_num_range = range(4)
+                RNA_num_list = [x for i, x in enumerate(RNA_num_range) if i != RNA_i]
+                TOTAL_1 = RNA_comp_pd["mean"][RNA_num_list].sum()
 
                 for min_or_max in ["min", "max"]:
                     RNA_norm = (RNA_comp_pd["mean"]) / TOTAL_1 * (1 - RNA_comp_pd[min_or_max][RNA_i])
@@ -260,22 +247,21 @@ class makeBiomass():
                     minmax_col = "RNAcoeff_" + str(RNA_comp_pd["Reactant"][RNA_i]) + "_" + str(min_or_max)
                     RNA_comp_pd[minmax_col] = RNA_norm
                     RNA_comp_pd.at[4, minmax_col] = RNA_comp_pd[minmax_col][:4].sum()
-            recal_RNA = RNA_comp_pd.filter(like="RNAcoeff_", axis=1)
+            recal_RNA = RNA_comp_pd.filter(like="RNAcoeff", axis=1)
 
             for i in range(len(recal_RNA.columns)):
                 for coeff_i in range(len(RNAin)):
                     gpergP = recal_RNA.iloc[coeff_i, i]
                     MW = RNAin.iloc[coeff_i, 1]
                     RNAin.at[coeff_i, "mmol/gDCW"] = wt_per_DCW * gpergP / MW * 1000
-                # RNA out
-                RNAout = self._processBiomassFrame(df=RNApd,in_or_out=1)
-                # ppi
-                RNAout.at[0, "mmol/gDCW.1"] = RNAin.iloc[:, 4].sum(axis=0)
-                # PROTEIN BIOMASS
-                RNAsyn =self._returnSynthesisEquation(df_in=RNAin,df_out=RNAout)
+                for k_i, k in enumerate(RNAout['Product']):
+                    if k.lower() in ['ppi', 'pi']:
+                        RNAout.at[k_i, "mmol/gDCW.1"] = RNAin['mmol/gDCW'].sum()
+                RNAsyn = self._returnSynthesisEquation(df_in=RNAin, df_out=RNAout)
                 RNAorDNA_Dict[recal_RNA.columns[i]] = RNAsyn
 
             return RNAorDNA_Dict, recal_RNA
+
 
 
         elif DNA_or_RNA == "DNA":
@@ -284,20 +270,17 @@ class makeBiomass():
 
             DNA_comp_pd = DNAin.iloc[:,:-1]
             DNA_comp_pd["mean"] = DNA_comp_pd["g/g DNA"]
-            DNA_comp_pd.at[4, "mean"] = DNA_comp_pd["mean"][:4].sum(axis=0)
-            DNA_comp_pd["mean"] = DNA_comp_pd["mean"] / DNA_comp_pd["mean"][4]
 
-
-            for coeff_i in range(len(DNAin)):
-                gpergP = DNA_comp_pd["mean"][coeff_i]
+            for coeff_i in range(len(DNA_comp_pd)):
+                gpergP = DNAin.iloc[coeff_i, 0]
                 MW = DNAin.iloc[coeff_i, 1]
                 DNAin.at[coeff_i, "mmol/gDCW"] = wt_per_DCW * gpergP / MW * 1000
 
-            DNAout = self._processBiomassFrame(df=DNApd,in_or_out=1)
-            # ppi
-            DNAout.at[0, "mmol/gDCW.1"] = DNAin.iloc[:, 4].sum(axis=0)
-            # PROTEIN BIOMASS
-            DNAsyn_ref = self._returnSynthesisEquation(df_in=DNAin,df_out=DNAout)
+            DNAout = self._processBiomassFrame(df=DNApd, in_or_out=1)
+            for k_i, k in enumerate(DNAout['Product']):
+                if k.lower() in ['ppi', 'pi']:
+                    DNAout.at[k_i, "mmol/gDCW.1"] = DNAin['mmol/gDCW'].sum()
+            DNAsyn_ref = self._returnSynthesisEquation(df_in=DNAin, df_out=DNAout)
             RNAorDNA_Dict['ref'] = DNAsyn_ref
 
             # ecoli_max_RNA_cv
@@ -305,7 +288,7 @@ class makeBiomass():
             DNA_comp_pd["min"] = DNA_comp_pd["mean"][:4] - (max_cv * DNA_comp_pd["mean"][:4])
             DNA_comp_pd["max"] = DNA_comp_pd["mean"][:4] + (max_cv * DNA_comp_pd["mean"][:4])
 
-            for DNA_i in range(len(DNA_comp_pd) - 1):
+            for DNA_i in range(4):
                 lp_num_range = range(len(DNA_comp_pd) - 1)
                 lp_num_list = [x for i, x in enumerate(lp_num_range) if i != DNA_i]
                 TOTAL_1 = DNA_comp_pd["mean"][lp_num_list].sum()
@@ -323,15 +306,11 @@ class makeBiomass():
                     gpergP = recal_DNA.iloc[coeff_i, i]
                     MW = DNAin.iloc[coeff_i, 1]
                     DNAin.at[coeff_i, "mmol/gDCW"] = wt_per_DCW * gpergP / MW * 1000
-                # DNA out
-                # ppi
-                DNAout.at[0, "mmol/gDCW.1"] = DNAin.iloc[:, 4].sum(axis=0)
-
-                # PROTEIN BIOMASS
-                DNAsyn = self._returnSynthesisEquation(df_in=DNAin,df_out=DNAout)
+                for k_i, k in enumerate(DNAout['Product']):
+                    if k.lower() in ['ppi', 'pi']:
+                        DNAout.at[k_i, "mmol/gDCW.1"] = DNAin['mmol/gDCW'].sum()
+                DNAsyn = self._returnSynthesisEquation(df_in=DNAin, df_out=DNAout)
                 RNAorDNA_Dict[recal_DNA.columns[i]] = DNAsyn
-
-
 
             return RNAorDNA_Dict, recal_DNA
 
@@ -448,12 +427,12 @@ class makeBiomass():
         return BIOMASSdict
 
 
-# if __name__ == '__main__':
-#     fileloc = ''
-#     filename = fileloc + '\Ecoli test1.xlsx'
-#
-#     a=makeBiomass(filename=filename)
-#     b=a.Formulate_min_max()
-#
+if __name__ == '__main__':
+    fileloc = r'C:\Users\yoonmi\OneDrive - 성균관대학교\Research\Project\2020 Biomass\Supplementary file\FBAwEB script\test'
+    filename = fileloc + '\Ecoli test1.xlsx'
+
+    a=makeBiomass(filename=filename)
+    b=a.Formulate_min_max()
+
 
 
