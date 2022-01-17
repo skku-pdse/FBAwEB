@@ -406,9 +406,9 @@ class makeBiomass():
 
 
 #
-if __name__ == '__main__':
-    fileloc = r'C:\Users\yoonmi\OneDrive - 성균관대학교\Research\Project\2020 Biomass\Supplementary file\FBAwEB script\test'
-    filename=fileloc+'\Scerevisiae test1.xlsx'
-    a = makeBiomass(filename=filename)
-    b = a.Formulate_min_max()
-
+# if __name__ == '__main__':
+#     fileloc = ''
+#     filename=fileloc+'\Scerevisiae test1.xlsx'
+#     a = makeBiomass(filename=filename)
+#     b = a.Formulate_min_max()
+#
