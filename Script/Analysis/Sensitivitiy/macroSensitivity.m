@@ -10,15 +10,18 @@
 % %  biomass_excel_name      name of biomass excel file;
 % %                          import biomass (ensemble biomass) excel file with '.xlsx'
 % %                          (i.e., Ecoli_mono_+-25% biomass_Jan12% 02;04.xlsx)
-% %   
-% %  filename2save          
-% % 
-% % 
-% %  FVAoption            
-% %     true                
-% %     false               
+% %
+% %  filename2save          name of exporting excel file 
+% %                         ("FBAwEB_datetime+filenae2save.xlsx" i.e., "FBAwEB_2020-01-01-00:00filename2save.xlsx")
+% %           
 % % OUTPUT
-
+% %  excel file 
+% %       Sheetname
+% %             flux_table      "rxn_id", "rxn_formula", "subsystems", "resultant flux distributions of each biomass equation"
+% %             summary_table   "rxn_id", "rxn_formula", "subsystems", "flux_median", "flux_standard deviation", "flux_max", "flux_min"
+% %
+% %
+% %
 %%
 function [model_modi1, flux_table, summary_table] = macroSensitivity(species,model_name,biomass_excel_name,filename2save,FVAoption)
 model_modi = model_name;
