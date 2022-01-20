@@ -10,9 +10,13 @@
 % %  biomass_excel_name      name of biomass excel file;
 % %                          import biomass (ensemble biomass) excel file with '.xlsx'
 % %                          (i.e., Ecoli_mono_+-25% biomass_Jan12% 02;04.xlsx)
-% %   
-% %  filename2save          
-% % 
+% %  
+% %  number_of_biomass      the number of sampled biomass equations that you want to implement FBAwEB 
+% %	 
+% %  starting_point         if implementation failed during MATLAB run, you can restart from the failure point
+% %  
+% %  filename2save          name of exporting excel file 
+% %                         ("FBAwEB_datetime+filenae2save.xlsx" i.e., "FBAwEB_2020-01-01-00:00filename2save.xlsx")
 % %           
 % % OUTPUT
 % %  excel file 
@@ -22,33 +26,32 @@
 % %
 % %
 % %
-function [model_modi1] = FBAwEB(species,model_name,biomass_excel_name,number_of_biomass,starting_point,filename2save);
+%%
+function [model_modi1, flux_table, summary_table] = FBAwEB(species,model_name,biomass_excel_name,number_of_biomass,starting_point,filename2save)
 model_modi = model_name;
-% 
-%
-%
-protsyn_eqn_raw = readtable(biomass_excel_name,'Sheet','PROTsyn','Range','B:C','HeaderLines',1,'ReadVariableNames',false,'ReadRowNames',1);
-dnasyn_eqn_raw = readtable(biomass_excel_name,'Sheet','DNAsyn','Range','B:C','HeaderLines',1,'ReadVariableNames',false,'ReadRowNames',1);
-rnasyn_eqn_raw = readtable(biomass_excel_name,'Sheet','RNAsyn','Range','B:C','HeaderLines',1,'ReadVariableNames',false,'ReadRowNames',1);
-lipidsyn_eqn_raw = readtable(biomass_excel_name,'Sheet','LIPIDsyn','Range','B:C','HeaderLines',1,'ReadVariableNames',false,'ReadRowNames',1);
+
+protsyn_eqn_raw = readtable(biomass_excel_name,'Sheet','PROTsyn','Range','A:B','HeaderLines',1,'ReadVariableNames',false,'ReadRowNames',1);
+dnasyn_eqn_raw = readtable(biomass_excel_name,'Sheet','DNAsyn','Range','A:B','HeaderLines',1,'ReadVariableNames',false,'ReadRowNames',1);
+rnasyn_eqn_raw = readtable(biomass_excel_name,'Sheet','RNAsyn','Range','A:B','HeaderLines',1,'ReadVariableNames',false,'ReadRowNames',1);
+lipidsyn_eqn_raw = readtable(biomass_excel_name,'Sheet','LIPIDsyn','Range','A:B','HeaderLines',1,'ReadVariableNames',false,'ReadRowNames',1);
 
 
 if species == "CHO"
-        carbsyn_eqn_raw = readtable(biomass_excel_name,'Sheet','CARBsyn','Range','B:C','HeaderLines',1,'ReadVariableNames',false,'ReadRowNames',1);
-        biomass_eqn_raw = readtable(biomass_excel_name,'Sheet','biomass_cho','Range','B:C','HeaderLines',1,'ReadVariableNames',false,'ReadRowNames',1);
+        carbsyn_eqn_raw = readtable(biomass_excel_name,'Sheet','CARBsyn','Range','A:B','HeaderLines',1,'ReadVariableNames',false,'ReadRowNames',1);
+        biomass_eqn_raw = readtable(biomass_excel_name,'Sheet','biomass','Range','A:B','HeaderLines',1,'ReadVariableNames',false,'ReadRowNames',1);
         model_modi1 = removeRxns(model_modi, {'biomass_cho','DNAsyn','RNAsyn','PROTsyn','biomass_cho_prod','DNAsyn_prod','RNAsyn_prod','PROTsyn_prod'});
-        fattyacidsyn_eqn_raw = readtable(biomass_excel_name,'Sheet','FATTYACIDsyn','Range','B:C','HeaderLines',1,'ReadVariableNames',false,'ReadRowNames',1);
-        fattyacudcoasyn_eqn_raw = readtable(biomass_excel_name,'Sheet','FATTYACIDCOAsyn','Range','B:C','HeaderLines',1,'ReadVariableNames',false,'ReadRowNames',1);
+        fattyacidsyn_eqn_raw = readtable(biomass_excel_name,'Sheet','FAsyn','Range','A:B','HeaderLines',1,'ReadVariableNames',false,'ReadRowNames',1);
+        fattyacudcoasyn_eqn_raw = readtable(biomass_excel_name,'Sheet','FACOAsyn','Range','A:B','HeaderLines',1,'ReadVariableNames',false,'ReadRowNames',1);
 
 elseif species == "ECOLI"
-        biomass_eqn_raw = readtable(biomass_excel_name,'Sheet','biomass_ecoli','Range','B:C','HeaderLines',1,'ReadVariableNames',false,'ReadRowNames',1);
+        biomass_eqn_raw = readtable(biomass_excel_name,'Sheet','biomass','Range','A:B','HeaderLines',1,'ReadVariableNames',false,'ReadRowNames',1);
         model_modi1 = removeRxns(model_modi, {'Ec_biomass_iML1515_core_75p37M','Ec_biomass_iML1515_WT_75p37M'});     
 
 elseif species == "YEAST"
-        biomass_eqn_raw = readtable(biomass_excel_name,'Sheet','biomass_yeast','Range','B:C','HeaderLines',1,'ReadVariableNames',false,'ReadRowNames',1);
+        biomass_eqn_raw = readtable(biomass_excel_name,'Sheet','biomass','Range','A:B','HeaderLines',1,'ReadVariableNames',false,'ReadRowNames',1);
         model_modi1 = removeRxns(model_modi, {'r_2108','r_4041','r_4047','r_4048','r_4049','r_4050'});
-        fattyacidsyn_eqn_raw = readtable(biomass_excel_name,'Sheet','FATTYACIDsyn','Range',range,'ReadVariableNames',false);
-        carbsyn_eqn_raw = readtable(biomass_excel_name,'Sheet','CARBsyn','Range','B:C','HeaderLines',1,'ReadVariableNames',false,'ReadRowNames',1);
+        fattyacidsyn_eqn_raw = readtable(biomass_excel_name,'Sheet','FAsyn','Range','A:B','HeaderLines',1,'ReadVariableNames',false,'ReadRowNames',1);
+        carbsyn_eqn_raw = readtable(biomass_excel_name,'Sheet','CARBsyn','Range','A:B','HeaderLines',1,'ReadVariableNames',false,'ReadRowNames',1);
 end
 
 lowerBound_biomass = 0;
@@ -102,64 +105,61 @@ for p=starting_point+1:starting_point+number_of_biomass
 
     % check objective function
     checkObjective(model_modi1);
+    if p ==1
+        flux_list = zeros(size(model_modi1.rxns,1),1);
+        eqn_list = cell(1,number_of_biomass);
+    else
+    end
 
-    solutions_fba = optimizeCbModel(model_modi1,'max');
     solutions_pfba = optimizeCbModel(model_modi1,'max','one');
 
-
-%     if isempty(solutions_fba.x) == 0 
-%         FBA_overall_name_flux(:,2*p-1) = convertCharsToStrings(model_modi1.rxns);
-%         FBA_overall_name_flux(:,2*p) = num2cell(solutions_fba.x);
-%     else
-%         p
-%         FBA_overall_name_flux(:,2*p-1) = convertCharsToStrings(model_modi1.rxns);
-%         FBA_overall_name_flux(:,2*p) = zeros();
-%     end
-%     
     if isempty(solutions_pfba.x) == 0 
         FBA_MIN_overall_name_flux(:,2*p-1) = convertCharsToStrings(model_modi1.rxns);
         FBA_MIN_overall_name_flux(:,2*p) = num2cell(solutions_pfba.x);
         flux_list(:,p) = solutions_pfba.x;
+        eqn_list {1,p} = biomass_table{1,1};
     else
         p
         FBA_MIN_overall_name_flux(:,2*p-1) = convertCharsToStrings(model_modi1.rxns);
         FBA_MIN_overall_name_flux(:,2*p) = zeros();
+        eqn_list {1,p} = biomass_table{1,1};     
     end
 
 
-%     solutions_fba.x = zeros();
+
     solutions_pfba.x = zeros();
 end
-save('modelIrrev_cho_etc.mat')
-% mean_FBA = num2cell(FBA_overall_name_flux(1:end, 1:end));0H% mean_pFBA = num2cell(FBA_MIN_overall_name_flux(1:end, 1:end));
-rxns_name = cellstr(convertCharsToStrings(model_modi1.rxns));
+
+flux_table = array2table(flux_list);
+flux_table.Properties.VariableNames = biomass_eqn_raw.Properties.RowNames(starting_point+1:number_of_biomass,1);
+
+
+flux_table.Properties.RowNames = model_modi1.rxns;
 rxns_name_cell = model_modi1.rxns;
 SUBSYS = model_modi1.subSystems;
-ReactionFormula = printRxnFormula(model_modi1,rxns_name_cell);
+ReactionFormula = printRxnFormula(model_modi1,'rxnAbbrList',rxns_name_cell,'printFlag',false);
 FORFORMU = ReactionFormula;
-flux_median = median(flux_list,2);
-flux_max = max(flux_list,[],2);
-flux_min = min(flux_list,[],2);
-summary_list = [flux_median flux_max flux_min];
-
-Flux_Distribution = [rxns_name FORFORMU SUBSYS];
+flux_median = median(flux_table{:,:},2);
+flux_std = std(flux_table{:,:},[],2);
+flux_max = max(flux_table{:,:},[],2);
+flux_min = min(flux_table{:,:},[],2);
+summary_list = [flux_median flux_std flux_max flux_min];
+summary_list = array2table(summary_list);
+summary_list.Properties.RowNames = model_modi1.rxns;
+summary_list.Properties.VariableNames = ["flux_median","flux_std","flux_max","flux_min"];
+Flux_Distribution = [FORFORMU SUBSYS];
+Flux_Distribution_table = cell2table(Flux_Distribution);
+Flux_Distribution_table.Properties.VariableNames = ["RxnFormula","subSystems"];
+flux_table = horzcat(Flux_Distribution_table,flux_table);
+summary_table = horzcat(Flux_Distribution_table,summary_list);
 t = string(datetime('now','TimeZone','Asia/Seoul','Format','y-MM-d_HH_mm_ss'));
-formatSpec = '%s%s%s';
-% formatSpec_fba = 'biomass_fba%s.xlsx';
-excel_name = sprintf(formatSpec,"FBAwEB_",t,filename2save);
-% excel_name_fba = sprintf(formatSpec_fba,t);
-sheet_name_formula = 'Flux_Distribution';
-% sheet_name1 = 'mean_pFBA';
-% sheet_name2 = 'mean_FBA';
-sheet_name4 = 'flux_list';
-sheet_name_summary = 'SUMMARY';
+formatSpec = "%s%s%s";
 
-xlswrite(excel_name,Flux_Distribution,sheet_name_formula);
-% xlswrite(excel_name,mean_pFBA,sheet_name1);
-% xlswrite(excel_name,mean_FBA,sheet_name2);
-xlswrite(excel_name,flux_list,sheet_name4);
-xlswrite(excel_name,summary_list,sheet_name_summary);
+excel_name = sprintf(formatSpec,"FBAwEB_ ",t,filename2save);
 
+
+writetable(flux_table,excel_name,'FileType','spreadsheet','Sheet','flux_table','WriteRowNames',true,'WriteVariableNames',true,'WriteMode','append','UseExcel',true);
+writetable(summary_table,excel_name,'FileType','spreadsheet','Sheet','summary_table','WriteRowNames',true,'WriteVariableNames',true,'WriteMode','append','UseExcel',true);
 
 
 end
