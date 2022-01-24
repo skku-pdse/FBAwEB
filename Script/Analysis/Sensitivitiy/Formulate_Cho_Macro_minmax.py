@@ -205,7 +205,7 @@ class makeBiomass():
         coeff_index = ["PROTcoe_nor", "DNAcoe_nor", "RNAcoe_nor", "CARBcoe_nor", "LIPIDcoe_nor","totalwt_nor"]
         coeff_pd = pd.DataFrame(index=coeff_index, columns=minmax_list)
         rxn_list=["ProtSyn","DNASyn","RNASyn","CarbSyn", "LipidSyn","FATTYACIDSyn_c","FATTYACIDSyn_e","FATTYACIDSyn_m","FATTYACIDSyn_x",
-                  "FATTYACUDCOASyn_c","FATTYACUDCOASyn_m","FATTYACUDCOASyn_x","BiomassSyn"]
+                  "FATTYACIDCOASyn_c","FATTYACIDCOASyn_m","FATTYACIDCOASyn_x","BiomassSyn"]
         minmax_pd=pd.DataFrame(index=rxn_list, columns=minmax_list)
 
         for col_i, head in enumerate(minmax_list):

@@ -841,24 +841,24 @@ class randomFBA():
 
 
 # Press the green button in the gutter to run the script.
-# if __name__ == '__main__':
-#
-#     testfile1= "test/Ecoli test1.xlsx"
-#     testfile2 = "test/Scerevisiae test1.xlsx"
-#     testfile3 = "test/CHO test1.xlsx"
-#
+if __name__ == '__main__':
+    loc= r'C:\Users\yoonmi\Documents\GitHub\FBAwEB\Script\Example\\'
+    testfile1= loc+"Ecoli test1.xlsx"
+    testfile2 = loc+"Scerevisiae test1.xlsx"
+    testfile3 = loc+"CHO test1.xlsx"
 
-    # ## 1 ##
-    # a=randomBiomass(organism='ecoli',file2read=testfile1,sampling_n=5000,macro_cols="A:W")
-    # b=a.exportBiomassEqns()
 
-    # # # 2 ##
-    # a1=randomBiomass(organism='yeast',file2read=testfile2,sampling_n=5000,macro_cols="A:T")
-    # b1=a1.exportBiomassEqns()
+    ## 1 ##
+    a=randomBiomass(organism='ecoli',file2read=testfile1,sampling_n=5000,macro_cols="A:W")
+    b=a.exportBiomassEqns()
 
-    # # ## 3 ##
-    # a2=randomBiomass(organism='cho',file2read=testfile3,sampling_n=5000,macro_cols="A:Q")
-    # b2=a2.exportBiomassEqns()
-    #
+    # # 2 ##
+    a1=randomBiomass(organism='yeast',file2read=testfile2,sampling_n=5000,macro_cols="A:T")
+    b1=a1.exportBiomassEqns()
+
+    # ## 3 ##
+    a2=randomBiomass(organism='cho',file2read=testfile3,sampling_n=5000,macro_cols="A:Q")
+    b2=a2.exportBiomassEqns()
+
 
 

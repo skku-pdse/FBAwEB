@@ -124,33 +124,21 @@ class makeBiomass():
             writer.save()
 
     def PROTEIN(self,wt_per_DCW):
-
         PROTDict={}
         PROTpd= pd.read_excel(self.filename, sheet_name='PROTsyn', usecols="A:H" ,convert_float=True)
-        PROTin= self._processBiomassFrame(df=PROTpd,in_or_out=-1)
+        PROTin=self._processBiomassFrame(df=PROTpd,in_or_out=-1)
 
         AApd = pd.DataFrame(PROTin[['g/g Protein','Reactant']])
-        print (AApd)
         AApd["mean"] = AApd.mean(axis=1)
         AApd.at[20,"mean"]=AApd["mean"][:20].sum(axis=0)
 
-        ##mean_ref
-        AA_norm_ref = (AApd["mean"]) / AApd["mean"][0:20].sum()
-        mean_col = "aacoeff_" + "mean"
-        AApd[mean_col] = AA_norm_ref
-        AApd.at[20, mean_col] = AApd[mean_col][:20].sum()
-        recal_AA_ref = AApd.filter(like="aacoeff_mean", axis=1)
-
         for coeff_i in range(len(PROTin)):
-            gpergP = recal_AA_ref.iloc[coeff_i, 0]
+            gpergP = PROTin.iloc[coeff_i, 0]
             MW = PROTin.iloc[coeff_i, 1]
             PROTin.at[coeff_i, "mmol/gDCW"] = wt_per_DCW * gpergP / MW * 1000
 
-        # PROT_REF out
-
         # PROT out
-        PROTout = self._processBiomassFrame(df=PROTpd, in_or_out=1)
-        # PROTout coeff cal
+        PROTout=self._processBiomassFrame(df=PROTpd,in_or_out=1)
         for k_i, k in enumerate(PROTout["Product"]):
             if k.lower() == 'h2o':
                 PROTout.at[k_i, "mmol/gDCW.1"] = PROTin.iloc[:20, 4].sum(axis=0)
@@ -158,19 +146,18 @@ class makeBiomass():
                 PROTout.at[k_i, "mmol/gDCW.1"] = 1
             else:  # amino acids
                 for ami_i, ami in enumerate(PROTin["Reactant"]):
-                    if k.lower().replace('trna', '') in ami:
+                    if k.lower() in ami.lower():
                         PROTout.at[k_i, "mmol/gDCW.1"] = PROTin.iloc[ami_i, 4]
                         break
-
         # REF_BIOMASS
         PROTsyn_ref = self._returnSynthesisEquation(df_in=PROTin, df_out=PROTout)
         PROTDict["ref"] = PROTsyn_ref
 
-
-        #ecoli_aa cv max
+        ##
         max_cv = 0.25
         AApd["min"] = AApd["mean"][:20] - (max_cv * AApd["mean"][:20])
         AApd["max"] = AApd["mean"][:20] + (max_cv * AApd["mean"][:20])
+
 
         for aa_i in range(20):
             aa_num_range = range(20)
@@ -185,13 +172,15 @@ class makeBiomass():
                 AApd.at[20,minmax_col] = AApd[minmax_col][:20].sum()
         recal_AA=AApd.filter(like="aacoeff",axis=1)
 
-        for i in range(len(recal_AA.columns)):
+
+        for i in range(len(recal_AA.columns)): # aa min or max case
             for coeff_i in range(len(PROTin)):
                 gpergP = recal_AA.iloc[coeff_i,i]
                 MW = PROTin.iloc[coeff_i, 1]
                 PROTin.at[coeff_i, "mmol/gDCW"] = wt_per_DCW * gpergP / MW * 1000
 
         # PROT out
+            # PROTout coeff cal
             for k_i, k in enumerate(PROTout["Product"]):
                 if k.lower() == 'h2o':
                     PROTout.at[k_i, "mmol/gDCW.1"] = PROTin.iloc[:20, 4].sum(axis=0)
@@ -199,14 +188,16 @@ class makeBiomass():
                     PROTout.at[k_i, "mmol/gDCW.1"] = 1
                 else:  # amino acids
                     for ami_i, ami in enumerate(PROTin["Reactant"]):
-                        if k.lower().replace('trna', '') in ami:
+                        if k.lower() in ami.lower():
                             PROTout.at[k_i, "mmol/gDCW.1"] = PROTin.iloc[ami_i, 4]
                             break
 
             PROTsyn = self._returnSynthesisEquation(df_in=PROTin,df_out=PROTout)
             PROTDict[recal_AA.columns[i]]=PROTsyn
 
+
         return PROTDict, recal_AA
+
 
     def DNA_or_RNA(self,wt_per_DCW, DNA_or_RNA):
         RNAorDNA_Dict = {}
@@ -426,7 +417,7 @@ class makeBiomass():
         BIOMASSdict={'ref':BIOMASSsyn}
         return BIOMASSdict
 
-#
+
 # if __name__ == '__main__':
 #     fileloc = ''
 #     filename = fileloc + '\Ecoli test1.xlsx'

@@ -127,8 +127,7 @@ class makeBiomass():
             MW = PROTin.iloc[coeff_i, 1]
             PROTin.at[coeff_i, "mmol/gDCW"] = wt_per_DCW * gpergP / MW * 1000
 
-        # PROT_REF out
-        # PROTout coeff cal
+        # PROT out
         PROTout=self._processBiomassFrame(df=PROTpd,in_or_out=1)
         for k_i, k in enumerate(PROTout["Product"]):
             if k.lower() == 'h2o':
