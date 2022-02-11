@@ -74,6 +74,35 @@ class randomBiomass():
             syn = sub + " -> " + pro
         return syn
 
+    def _makeRef(self,org,randomdf):
+        refDict=dict()
+        refCol="Norm_Data Average"
+        refDict["PROTsyn_ref"]=self.PROTEIN(randomdf.loc['Protein',refCol])
+        refDict["DNAsyn_ref"]=self.DNA_or_RNA(randomdf.loc['Dna',refCol],DNA_or_RNA="DNA")
+        refDict["RNAsyn_ref"]=self.DNA_or_RNA(randomdf.loc['Rna',refCol],DNA_or_RNA="RNA")
+        if org.lower() == 'ecoli':
+            refDict["LIPIDsyn_ref"]=self.ecoliLIPID(randomdf.loc['Lipid',refCol],FA_CV=0.7145)
+            refDict["BIOMASSn_ref"]=self.ecoliBIOMASS(randomdf.loc['Lps',refCol], randomdf.loc['Murein',refCol])
+            print (randomdf)
+        elif org.lower() == 'yeast' or org.lower() == 'scerevisiae':
+            refDict["CARBsyn_ref"] = self.CARB(randomdf.loc['Carbohydrate', refCol])
+            LIPIDfunc=self.yeastLIPID(randomdf.loc['Lipid',refCol],FA_CV=0.6679)
+            refDict["LIPIDsyn_ref"]=LIPIDfunc[0]
+            refDict["FAsyn_ref"] =LIPIDfunc[1]
+            refDict["BIOMASSsyn"] = self.yeastBIOMASS(yeast_norm_fac=randomdf[refCol][5] / 0.029)
+
+        elif org.lower() == 'cho':
+            refDict["CARBsyn_ref"] = self.CARB(randomdf.loc['Carbohydrate', refCol])
+            LIPIDfunc=self.LIPID(randomdf.loc['Lipid',refCol],FA_CV=0.5205)
+            refDict["LIPIDsyn_ref"] = LIPIDfunc[0]
+            refDict["FATTYACIDsyn_ref"] =LIPIDfunc[1]
+            refDict["FATTYACIDCOAsyn_ref"] = LIPIDfunc[2]
+            refDict["BIOMASSsyn"]=self.choBIOMASS()
+        else :
+            refDict["ERROR"]=None
+        return refDict
+
+
     def exportBiomassEqns(self):
 
         func=self.BiomassSets
@@ -81,13 +110,15 @@ class randomBiomass():
         Path(saveDir).mkdir(parents=True,exist_ok=True)
         self.file2save=path.join(saveDir,self.file2save)
 
+        ref=self._makeRef(org=self.organism,randomdf=func[0])
         with ExcelWriter(self.file2save) as writer:
             func[0].to_excel(writer,sheet_name="Random coefficient")
+            pd.DataFrame(ref,index=[0]).T.to_excel(writer, sheet_name='ref')
             pd.DataFrame(func[2]).to_excel(writer, sheet_name='PROTsyn')
             pd.DataFrame(func[3]).to_excel(writer, sheet_name='DNAsyn')
             pd.DataFrame(func[4]).to_excel(writer, sheet_name='RNAsyn')
             pd.DataFrame(func[5]).to_excel(writer, sheet_name='CARBsyn')
-            pd.DataFrame(func[6]).to_excel(writer, sheet_name="LIPIDsyn")
+            pd.DataFrame(func[6]).to_excel(writer, sheet_name='LIPIDsyn')
             pd.DataFrame(func[7]).to_excel(writer, sheet_name='FAsyn')
             if self.organism.lower() == 'cho':
                 pd.DataFrame(func[9]).to_excel(writer, sheet_name='FACOAsyn')
@@ -165,7 +196,7 @@ class randomBiomass():
         while len(randomcoeffpd.columns) < self.sampling_n + len(randomcoeffpd_default.columns) :
             coe_min_list=list()
             coe_max_list=list()
-            for r in range(4) :
+            for r in range(4) : #Prot ~ LIPID
                 coe_min=randomcoeffpd["Norm_Data Average"][r] - 2 * randomcoeffpd["Data Stdev"][r]
                 coe_max = randomcoeffpd["Norm_Data Average"][r] + 2 * randomcoeffpd["Data Stdev"][r]
                 if coe_min < 0 :
@@ -182,18 +213,17 @@ class randomBiomass():
             Inorganiccoe=randomcoeffpd["Norm_Data Average"][6]
             Solublecoe=randomcoeffpd["Norm_Data Average"][7]
 
-            varing_coe=PROTcoe+DNAcoe+RNAcoe+LIPIDcoe+LPScoe+Mureincoe
-            fixed_coe=Inorganiccoe+ Solublecoe
+            varing_coe=PROTcoe+DNAcoe+RNAcoe+LIPIDcoe
+            fixed_coe=LPScoe+Mureincoe+Inorganiccoe+ Solublecoe
 
             PROTcoe_nor= PROTcoe/varing_coe*(1-fixed_coe)
             DNAcoe_nor=DNAcoe/varing_coe*(1-fixed_coe)
             RNAcoe_nor = RNAcoe / varing_coe*(1-fixed_coe)
             LIPIDcoe_nor = LIPIDcoe / varing_coe*(1-fixed_coe)
-            LPScoe_nor= LPScoe / varing_coe*(1-fixed_coe)
-            Mureincoe_nor = Mureincoe / varing_coe * (1 - fixed_coe)
-            totalwt_nor=PROTcoe_nor+DNAcoe_nor+RNAcoe_nor+LIPIDcoe_nor+ LPScoe_nor+Mureincoe_nor+fixed_coe
 
-            randomcoeffpd[str(col_k)] = [PROTcoe_nor, DNAcoe_nor, RNAcoe_nor, LIPIDcoe_nor, LPScoe_nor, Mureincoe_nor,
+            totalwt_nor=PROTcoe_nor+DNAcoe_nor+RNAcoe_nor+LIPIDcoe_nor+fixed_coe
+
+            randomcoeffpd[str(col_k)] = [PROTcoe_nor, DNAcoe_nor, RNAcoe_nor, LIPIDcoe_nor, LPScoe, Mureincoe,
                                          Inorganiccoe, Solublecoe, totalwt_nor]
             col_k += 1
 
@@ -215,14 +245,14 @@ class randomBiomass():
                 _DNAsyn=self.DNA_or_RNA(randomcoeffpd.iloc[1,col_i],DNA_or_RNA="DNA")
                 _RNAsyn=self.DNA_or_RNA(randomcoeffpd.iloc[2,col_i],DNA_or_RNA="RNA")
                 _LIPIDsyn=self.ecoliLIPID(randomcoeffpd.iloc[3,col_i],FA_CV=0.7145)
-                _BIOMASSsyn= self.ecoliBIOMASS(LPScoe_nor,Mureincoe_nor)
+                _BIOMASSsyn= self.ecoliBIOMASS(randomcoeffpd.iloc[4,col_i],randomcoeffpd.iloc[5,col_i])
                 _PROTlist.append(_PROTsyn)
                 _DNAlist.append(_DNAsyn)
                 _RNAlist.append(_RNAsyn)
                 _LIPIDlist.append(_LIPIDsyn)
                 _BIOMASSlist.append(_BIOMASSsyn)
 
-        return randomcoeffpd,None,_PROTlist,_DNAlist,_RNAlist,None,_LIPIDlist,None,_BIOMASSlist
+        return randomcoeffpd,["NA"],_PROTlist,_DNAlist,_RNAlist,["NA"],_LIPIDlist,["NA"],_BIOMASSlist
 
     def yeastRandomBiomass(self):
 
@@ -345,7 +375,6 @@ class randomBiomass():
                 _FAlist.append(_FAsyn)
                 _BIOMASSlist.append(_BIOMASSsyn)
         return randomcoeffpd, None , _PROTlist, _DNAlist, _RNAlist, _CARBlist, _LIPIDlist,_FAlist, _BIOMASSlist
-
 
     def choRandomBiomass(self):
         pd.set_option("display.max_columns", 999)
@@ -476,7 +505,6 @@ class randomBiomass():
                 _FACOAlist.append(_FACOAsyn)
         return randomcoeffpd,None,_PROTlist,_DNAlist,_RNAlist,_CARBlist,_LIPIDlist,_FAlist,_BIOMASSlist, _FACOAlist
 
-
     def PROTEIN(self,Prot_wt_per_DCW):
 
         PROTpd= pd.read_excel(self.file2read, sheet_name='PROTsyn', usecols=self._commonReadCols ,convert_float=True)
@@ -495,9 +523,10 @@ class randomBiomass():
                 PROTout.at[k_i, "mmol/gDCW.1"] = 1
             else : # amino acids
                 for ami_i, ami in enumerate(PROTin["Reactant"]):
-                    if k.lower().replace('trna','') in ami:
+                    if k.lower().replace('trna','') in ami.lower():
                         PROTout.at[k_i, "mmol/gDCW.1"]= PROTin.iloc[ami_i ,4]
                         break
+
         PROTsyn= self._returnSynthesisEquation(PROTin,PROTout)
         return PROTsyn
 
@@ -650,7 +679,6 @@ class randomBiomass():
 
             norm_new_fa=np.divide(new_fa,sum(new_fa))
             FAin["mol/mol"]=norm_new_fa
-
 
             FAout=self._processBiomassFrame(FApd,1)
             FAsyn = self._returnSynthesisEquation(FAin, FAout)
@@ -841,24 +869,24 @@ class randomFBA():
 
 
 # Press the green button in the gutter to run the script.
-if __name__ == '__main__':
-    loc= r'C:\Users\yoonmi\Documents\GitHub\FBAwEB\Script\Example\\'
-    testfile1= loc+"Ecoli test1.xlsx"
-    testfile2 = loc+"Scerevisiae test1.xlsx"
-    testfile3 = loc+"CHO test1.xlsx"
+# if __name__ == '__main__':
+    # loc= '' #Edit this directory
+    # testfile1= loc+"Ecoli test1.xlsx"
+    # testfile2 = loc+"Scerevisiae test1.xlsx"
+    # testfile3 = loc+"CHO test1.xlsx"
 
 
-    ## 1 ##
-    a=randomBiomass(organism='ecoli',file2read=testfile1,sampling_n=5000,macro_cols="A:W")
-    b=a.exportBiomassEqns()
+    # ## 1 ##
+    # a=randomBiomass(organism='ecoli',file2read=testfile1,sampling_n=5000,macro_cols="A:W")
+    # b=a.exportBiomassEqns()
 
-    # # 2 ##
-    a1=randomBiomass(organism='yeast',file2read=testfile2,sampling_n=5000,macro_cols="A:T")
-    b1=a1.exportBiomassEqns()
+    # # # 2 ##
+    # a1=randomBiomass(organism='yeast',file2read=testfile2,sampling_n=5000,macro_cols="A:T")
+    # b1=a1.exportBiomassEqns()
 
-    # ## 3 ##
-    a2=randomBiomass(organism='cho',file2read=testfile3,sampling_n=5000,macro_cols="A:Q")
-    b2=a2.exportBiomassEqns()
+    # # ## 3 ##
+    # a2=randomBiomass(organism='cho',file2read=testfile3,sampling_n=5000,macro_cols="A:Q")
+    # b2=a2.exportBiomassEqns()
 
 
 
