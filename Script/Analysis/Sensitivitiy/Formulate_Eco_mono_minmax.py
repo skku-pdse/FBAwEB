@@ -74,12 +74,12 @@ class makeBiomass():
         all["mean"]=all.mean(axis=1,skipna=True)
         all["stdev"]=all.iloc[:,:-1].std(axis=1,skipna=True)
 
-
-        randomcoeffpd=pd.DataFrame({"Component":["Protein","DNA/Protein(col:(Norm_)Data Average,Stdev) or DNA", "RNA/Protein(col:Data Average,Stdev) or RNA",
-                                                 "Lipid","LPS", "Murein", "Inorganic", "Soluble pool","Sum"],
+        componentList =["Protein","DNA/Protein(col:(Norm_)Data Average,Stdev) or DNA", "RNA/Protein(col:Data Average,Stdev) or RNA",
+                                                 "Carbohydrate", "Lipid","LPS", "Murein", "Inorganic", "Soluble pool","Sum"]
+        randomcoeffpd=pd.DataFrame({"Component":componentList,
                                     "Data Average":list(all["mean"]),"Data Stdev":list(all["stdev"]),
-                                    "Norm_Data Average" : [np.nan]*9,
-                                    "Random Average": [np.nan]*9,"Random Stdev" : [np.nan]*9 })
+                                    "Norm_Data Average" : [np.nan]*len(componentList),
+                                    "Random Average": [np.nan]*len(componentList),"Random Stdev" : [np.nan]*len(componentList)})
         #DNA or RNA * protein
 
         randomcoeffpd["Data Average"][-1] = randomcoeffpd["Data Average"][0]*(1+randomcoeffpd["Data Average"][1]+randomcoeffpd["Data Average"][2]) \
@@ -89,11 +89,11 @@ class makeBiomass():
         randomcoeffpd["Data Average"][2] = randomcoeffpd["Data Average"][2] * randomcoeffpd["Data Average"][0]
 
         varing_coeff=randomcoeffpd["Data Average"][:-3].sum(axis=0)
-        fixed_coeff=randomcoeffpd[["Data Average"]][6:-1].sum(axis=0)
+        fixed_coeff=randomcoeffpd[["Data Average"]][7:-1].sum(axis=0)
 
         #Normalization of average value
         for i in range(len(randomcoeffpd)):
-            if i < 6 :
+            if i < 7 :
                 randomcoeffpd["Norm_Data Average"][i]= randomcoeffpd["Data Average"][i] / varing_coeff * (1-fixed_coeff)
             else :
                 randomcoeffpd["Norm_Data Average"][i]= randomcoeffpd["Data Average"][i]
@@ -103,12 +103,13 @@ class makeBiomass():
 
 
         PROT_sensitivity = self.PROTEIN(randomcoeffpd["Norm_Data Average"][0])
-        LIPID_sensitivity = self.LIPID(randomcoeffpd["Norm_Data Average"][3])
+        LIPID_sensitivity = self.LIPID(randomcoeffpd["Norm_Data Average"][4])
+        CARB_sensitivity = self.CARB(randomcoeffpd["Norm_Data Average"][3])
         RNA_sensitivity = self.DNA_or_RNA(randomcoeffpd["Norm_Data Average"][2],DNA_or_RNA="RNA")
         DNA_sensitivity = self.DNA_or_RNA(randomcoeffpd["Norm_Data Average"][1],DNA_or_RNA="DNA")
 
-        LPSpDCW= randomcoeffpd.iloc[4][3]
-        MUREINpDCW= randomcoeffpd.iloc[5][3]
+        LPSpDCW= randomcoeffpd.iloc[5][3]
+        MUREINpDCW= randomcoeffpd.iloc[6][3]
         BIOMASSsyn= self.BIOMASS(LPSpDCW,MUREINpDCW)
 
         with ExcelWriter(self.file2save) as writer:
@@ -117,6 +118,7 @@ class makeBiomass():
             pd.DataFrame(PROT_sensitivity[0].items()).to_excel(writer, sheet_name='PROTsyn')
             pd.DataFrame(LIPID_sensitivity[0].items()).to_excel(writer, sheet_name='LIPIDsyn')
             LIPID_sensitivity[1].to_excel(writer, sheet_name='FATTYACID_info')
+            pd.DataFrame(CARB_sensitivity.items()).to_excel(writer, sheet_name='CARBsyn')
             pd.DataFrame(RNA_sensitivity[0].items()).to_excel(writer, sheet_name='RNAsyn')
             pd.DataFrame(DNA_sensitivity[0].items()).to_excel(writer, sheet_name='DNAsyn')
 
@@ -280,7 +282,7 @@ class makeBiomass():
             DNA_comp_pd["max"] = DNA_comp_pd["mean"][:4] + (max_cv * DNA_comp_pd["mean"][:4])
 
             for DNA_i in range(4):
-                lp_num_range = range(len(DNA_comp_pd) - 1)
+                lp_num_range = range(4)
                 lp_num_list = [x for i, x in enumerate(lp_num_range) if i != DNA_i]
                 TOTAL_1 = DNA_comp_pd["mean"][lp_num_list].sum()
 
@@ -304,6 +306,27 @@ class makeBiomass():
                 RNAorDNA_Dict[recal_DNA.columns[i]] = DNAsyn
 
             return RNAorDNA_Dict, recal_DNA
+
+    def CARB(self,Carb_per_DCW):
+        CARB_Dict={}
+        CARBpd = pd.read_excel(self.filename, sheet_name='CARBsyn', usecols="A:H", convert_float=True)
+        CARBin = self._processBiomassFrame(df=CARBpd, in_or_out=-1)
+
+        for i in range(len(CARBin)):
+            gpergCARB = CARBin.iloc[i, 0]
+            MW = CARBin.iloc[i, 1]
+            CARBin.at[i, "mmol/gDCW"] = Carb_per_DCW * gpergCARB / MW * 1000
+
+        CARBout = self._processBiomassFrame(df=CARBpd, in_or_out=1)
+        for p_ind, p in enumerate(CARBout["Product"]):
+            if any(c == p.lower() for c in ("carbohydrate", "carb", "carbo")):
+                CARBout.at[p_ind, "mmol/gDCW.1"] = 1
+        print(CARBout)
+
+        # PROTEIN BIOMASS
+        CARBsyn = self._returnSynthesisEquation(df_in=CARBin, df_out=CARBout)
+        CARB_Dict['ref'] = CARBsyn
+        return CARB_Dict
 
 
     def LIPID(self,LIPID_wt_per_DCW):
@@ -418,12 +441,12 @@ class makeBiomass():
         return BIOMASSdict
 
 
-# if __name__ == '__main__':
-#     fileloc = ''
-#     filename = fileloc + '\Ecoli test1.xlsx'
-#
-#     a=makeBiomass(filename=filename)
-#     b=a.Formulate_min_max()
+if __name__ == '__main__':
+    # fileloc = ''
+    # filename = fileloc + '\Ecoli test1_sensitivitiyOnly.xlsx'
+    filename='Ecoli test1_sensitivityOnly.xlsx'
+    a=makeBiomass(filename=filename)
+    b=a.Formulate_min_max()
 
 
 

@@ -63,7 +63,7 @@ class makeBiomass():
             syn = sub + " -> " + pro
         return syn
 
-    def RandomBiomass(self,Protein, DNA, RNA, Lipid):
+    def RandomBiomass(self,Protein, DNA, RNA, Carbohydrate, Lipid):
         pd.set_option("display.max_columns",999)
         all = pd.read_excel(self.file2read, sheet_name='Overall', usecols="A:W", convert_float=True,index_col=0)
 
@@ -72,7 +72,7 @@ class makeBiomass():
         all["mean"]=all.mean(axis=1,skipna=True)
         all["stdev"]=all.iloc[:,:-1].std(axis=1,skipna=True)
 
-        componentList = ["Protein","DNA(/Protein)", "RNA(/Protein)","Lipid","LPS", "Murein", "Inorganic", "Soluble pool","Sum"]
+        componentList = ["Protein","DNA(/Protein)", "RNA(/Protein)","Carbohydrate","Lipid","LPS", "Murein", "Inorganic", "Soluble pool","Sum"]
 
         # DNA/Protein or RNA/Protein -> For "Data Average","Norm_Data Average", "Data Stdev" columns : DNA g / Protein g, or RNA g/ Protein g.
         #                            -> For Random coefficient : DNA g/gDCW , RNA g/gDCW
@@ -101,10 +101,10 @@ class makeBiomass():
         randomcoeffpd.at[len(componentList)-1,"Data Average"] = randomcoeffpd["Data Average"][len(componentList)-1].sum()
 
         varing_coeff = randomcoeffpd["Data Average"][:-3].sum(axis=0)
-        fixed_coeff = randomcoeffpd[["Data Average"]][6:-1].sum(axis=0)
+        fixed_coeff = randomcoeffpd[["Data Average"]][7:-1].sum(axis=0)
         #Normalization of average value
         for i in range(len(componentList)):
-            if i < 6:
+            if i < 7:
                 randomcoeffpd["Norm_Data Average"][i] = randomcoeffpd["Data Average"][i] / varing_coeff * (
                             1 - fixed_coeff)
             else:
@@ -136,67 +136,86 @@ class makeBiomass():
         elif RNA == 'mean':
             RNAcoe = randomcoeffpd["Norm_Data Average"][2]
 
-        # GLYCOcoe = random.uniform(randomcoeffpd["Norm_Data Average"][3] - randomcoeffpd["Data Stdev"][3],randomcoeffpd["Norm_Data Average"][3]+randomcoeffpd["Data Stdev"][3])
+        if Carbohydrate == 'max':
+            CARBcoe=randomcoeffpd["Norm_Data Average"][3] * 1.25
+        elif Carbohydrate == 'min':
+            CARBcoe = randomcoeffpd["Norm_Data Average"][3] * 0.75
+        elif Carbohydrate == 'mean':
+            CARBcoe = randomcoeffpd["Norm_Data Average"][3]
 
         if Lipid  == 'max':
-            LIPIDcoe = randomcoeffpd["Norm_Data Average"][3] *1.25
+            LIPIDcoe = randomcoeffpd["Norm_Data Average"][4] *1.25
         elif Lipid == 'min':
-            LIPIDcoe = randomcoeffpd["Norm_Data Average"][3] * 0.75
+            LIPIDcoe = randomcoeffpd["Norm_Data Average"][4] * 0.75
         elif Lipid == 'mean':
-            LIPIDcoe = randomcoeffpd["Norm_Data Average"][3]
+            LIPIDcoe = randomcoeffpd["Norm_Data Average"][4]
 
-        LPScoe= randomcoeffpd["Norm_Data Average"][4]
-        MUREINcoe= randomcoeffpd["Norm_Data Average"][5]
-        INORGANICcoe= randomcoeffpd["Norm_Data Average"][6]
-        SOLUBLEPcoe= randomcoeffpd["Norm_Data Average"][7]
+        LPScoe= randomcoeffpd["Norm_Data Average"][5]
+        MUREINcoe= randomcoeffpd["Norm_Data Average"][6]
+        INORGANICcoe= randomcoeffpd["Norm_Data Average"][7]
+        SOLUBLEPcoe= randomcoeffpd["Norm_Data Average"][8]
 
         if (Protein == 'max') or (Protein == 'min') :
-            varing_coe = DNAcoe + RNAcoe + LIPIDcoe
-            fixed_coe= PROTcoe + LPScoe+MUREINcoe+INORGANICcoe+SOLUBLEPcoe
+            varing_coe = DNAcoe + RNAcoe + LIPIDcoe + CARBcoe
+            fixed_coe= PROTcoe + LPScoe + MUREINcoe + INORGANICcoe + SOLUBLEPcoe
             PROTcoe_nor = PROTcoe
             DNAcoe_nor = DNAcoe / varing_coe * (1 - fixed_coe)
             RNAcoe_nor = RNAcoe / varing_coe * (1 - fixed_coe)
+            CARBcoe_nor = CARBcoe / varing_coe * (1 - fixed_coe)
             LIPIDcoe_nor = LIPIDcoe / varing_coe * (1 - fixed_coe)
-            varing_coe_nor= DNAcoe_nor + RNAcoe_nor + LIPIDcoe_nor
+            varing_coe_nor= DNAcoe_nor + RNAcoe_nor + CARBcoe_nor + LIPIDcoe_nor
         elif (DNA == 'max') or (DNA == 'min') :
-            varing_coe = PROTcoe + RNAcoe + LIPIDcoe
+            varing_coe = PROTcoe + RNAcoe + LIPIDcoe+ CARBcoe
             fixed_coe= DNAcoe + LPScoe+MUREINcoe+INORGANICcoe+SOLUBLEPcoe
             PROTcoe_nor = PROTcoe / varing_coe * (1 - fixed_coe)
             DNAcoe_nor = DNAcoe
             RNAcoe_nor = RNAcoe / varing_coe * (1 - fixed_coe)
+            CARBcoe_nor = CARBcoe / varing_coe * (1 - fixed_coe)
             LIPIDcoe_nor = LIPIDcoe / varing_coe * (1 - fixed_coe)
-            varing_coe_nor = PROTcoe_nor + RNAcoe_nor + LIPIDcoe_nor
+            varing_coe_nor = PROTcoe_nor + RNAcoe_nor + CARBcoe_nor +LIPIDcoe_nor
         elif (RNA == 'max') or (RNA == 'min') :
-            varing_coe = PROTcoe + DNAcoe +  LIPIDcoe
+            varing_coe = PROTcoe + DNAcoe +  LIPIDcoe+ CARBcoe
             fixed_coe=RNAcoe +LPScoe+MUREINcoe+INORGANICcoe+SOLUBLEPcoe
             PROTcoe_nor = PROTcoe / varing_coe * (1 - fixed_coe)
             DNAcoe_nor = DNAcoe / varing_coe * (1 - fixed_coe)
             RNAcoe_nor = RNAcoe
+            CARBcoe_nor = CARBcoe / varing_coe * (1 - fixed_coe)
             LIPIDcoe_nor = LIPIDcoe / varing_coe * (1 - fixed_coe)
-            varing_coe_nor = PROTcoe_nor + DNAcoe_nor + LIPIDcoe_nor
+            varing_coe_nor = PROTcoe_nor + DNAcoe_nor + CARBcoe_nor +LIPIDcoe_nor
+        elif (Carbohydrate == 'max') or (Carbohydrate == 'min'):
+            varing_coe = PROTcoe + DNAcoe + RNAcoe + LIPIDcoe
+            fixed_coe = CARBcoe + LPScoe + MUREINcoe + INORGANICcoe + SOLUBLEPcoe
+            PROTcoe_nor = PROTcoe / varing_coe * (1 - fixed_coe)
+            DNAcoe_nor = DNAcoe / varing_coe * (1 - fixed_coe)
+            RNAcoe_nor = RNAcoe / varing_coe * (1 - fixed_coe)
+            CARBcoe_nor = CARBcoe
+            LIPIDcoe_nor = LIPIDcoe / varing_coe * (1 - fixed_coe)
+            varing_coe_nor = PROTcoe_nor + DNAcoe_nor + RNAcoe_nor + LIPIDcoe_nor
         elif (Lipid == 'max') or (Lipid == 'min') :
-            varing_coe = PROTcoe + DNAcoe + RNAcoe
+            varing_coe = PROTcoe + DNAcoe + RNAcoe+ CARBcoe
             fixed_coe =  LIPIDcoe + LPScoe + MUREINcoe + INORGANICcoe + SOLUBLEPcoe
             PROTcoe_nor = PROTcoe / varing_coe * (1 - fixed_coe)
             DNAcoe_nor = DNAcoe / varing_coe * (1 - fixed_coe)
             RNAcoe_nor = RNAcoe / varing_coe * (1 - fixed_coe)
+            CARBcoe_nor = CARBcoe / varing_coe * (1 - fixed_coe)
             LIPIDcoe_nor = LIPIDcoe
-            varing_coe_nor = PROTcoe_nor + DNAcoe_nor + RNAcoe_nor
+            varing_coe_nor = PROTcoe_nor + DNAcoe_nor + RNAcoe_nor + CARBcoe_nor
 
         else : # all mean
-            varing_coe = PROTcoe + DNAcoe + RNAcoe + LIPIDcoe
+            varing_coe = PROTcoe + DNAcoe + RNAcoe + CARBcoe + LIPIDcoe
             fixed_coe =   LPScoe + MUREINcoe + INORGANICcoe + SOLUBLEPcoe
             PROTcoe_nor = PROTcoe / varing_coe * (1 - fixed_coe)
             DNAcoe_nor = DNAcoe / varing_coe * (1 - fixed_coe)
             RNAcoe_nor = RNAcoe / varing_coe * (1 - fixed_coe)
+            CARBcoe_nor = CARBcoe / varing_coe * (1 - fixed_coe)
             LIPIDcoe_nor = LIPIDcoe / varing_coe * (1 - fixed_coe)
-            varing_coe_nor = PROTcoe_nor + DNAcoe_nor + RNAcoe_nor + LIPIDcoe_nor
+            varing_coe_nor = PROTcoe_nor + DNAcoe_nor + RNAcoe_nor + CARBcoe_nor + LIPIDcoe_nor
 
         # totalwt_nor=PROTcoe_nor+DNAcoe_nor+RNAcoe_nor+GLYCOcoe_nor+LIPIDcoe_nor + fixed_coe
         totalwt_nor = varing_coe_nor + fixed_coe
 
         # randomcoeffpd[str(col_k)]=[PROTcoe_nor,DNAcoe_nor,RNAcoe_nor,GLYCOcoe_nor,LIPIDcoe_nor, LPScoe, MUREINcoe, INORGANICcoe,SOLUBLEPcoe,totalwt_nor]
-        Final_coe_list = [PROTcoe_nor, DNAcoe_nor, RNAcoe_nor, LIPIDcoe_nor, LPScoe, MUREINcoe, INORGANICcoe, SOLUBLEPcoe, totalwt_nor, norm_fac]
+        Final_coe_list = [PROTcoe_nor, DNAcoe_nor, RNAcoe_nor, CARBcoe_nor, LIPIDcoe_nor, LPScoe, MUREINcoe, INORGANICcoe, SOLUBLEPcoe, totalwt_nor, norm_fac]
 
         return Final_coe_list
         # # Random result summary
@@ -205,39 +224,44 @@ class makeBiomass():
             # multiple overall composition loop
     def Formulate_min_max(self):
 
-        minmax_list = ['Prot_min', "Prot_max", "DNA_min", "DNA_max", "RNA_min", "RNA_max", "Lipid_min", "Lipid,max", "Ref"]
-        coeff_index = ["PROTcoe_nor", "DNAcoe_nor", "RNAcoe_nor", "LIPIDcoe_nor", "LPScoe", "MUREINcoe", "INORGANICcoe",
+        minmax_list = ['Prot_min', "Prot_max", "DNA_min", "DNA_max", "RNA_min", "RNA_max", "Carb_min", "Carb_max", "Lipid_min", "Lipid,max", "Ref"]
+        coeff_index = ["PROTcoe_nor", "DNAcoe_nor", "RNAcoe_nor","CARBcoe_nor", "LIPIDcoe_nor", "LPScoe", "MUREINcoe", "INORGANICcoe",
                        "SOLUBLEPcoe","totalwt_nor", "norm_fac"]
         coeff_pd = pd.DataFrame(index=coeff_index, columns=minmax_list)
-        rxn_list=["ProtSyn","DNASyn","RNASyn","LipidSyn","BiomassSyn"]
+        rxn_list=["ProtSyn","DNASyn","RNASyn","CarbSyn","LipidSyn","BiomassSyn"]
         minmax_pd=pd.DataFrame(index=rxn_list, columns=minmax_list)
 
 
         for col_i,head in enumerate(minmax_list):
             if col_i == 0 :
-                coeff_list = self.RandomBiomass("min", "mean", "mean", "mean")
+                coeff_list = self.RandomBiomass("min", "mean", "mean", "mean", "mean")
             elif col_i == 1 :
-                coeff_list = self.RandomBiomass("max", "mean", "mean", "mean")
+                coeff_list = self.RandomBiomass("max", "mean", "mean", "mean", "mean")
             elif col_i == 2 :
-                coeff_list = self.RandomBiomass("mean", "min", "mean", "mean")
+                coeff_list = self.RandomBiomass("mean", "min", "mean", "mean", "mean")
             elif col_i == 3 :
-                coeff_list = self.RandomBiomass("mean", "max", "mean", "mean")
+                coeff_list = self.RandomBiomass("mean", "max", "mean", "mean", "mean")
             elif col_i == 4 :
-                coeff_list = self.RandomBiomass("mean", "mean", "min", "mean")
+                coeff_list = self.RandomBiomass("mean", "mean", "min", "mean", "mean")
             elif col_i == 5 :
-                coeff_list = self.RandomBiomass("mean", "mean", "max", "mean")
+                coeff_list = self.RandomBiomass("mean", "mean", "max", "mean", "mean")
             elif col_i == 6 :
-                coeff_list = self.RandomBiomass("mean", "mean", "mean", "min")
+                coeff_list = self.RandomBiomass("mean", "mean", "mean", "min", "mean")
             elif col_i == 7 :
-                coeff_list = self.RandomBiomass("mean", "mean", "mean", "max")
+                coeff_list = self.RandomBiomass("mean", "mean", "mean", "max", "mean")
             elif col_i == 8:
-                coeff_list = self.RandomBiomass("mean", "mean", "mean", "mean")
+                coeff_list = self.RandomBiomass("mean", "mean", "mean", "mean", "min")
+            elif col_i == 9 :
+                coeff_list = self.RandomBiomass("mean", "mean", "mean", "mean", "max")
+            elif col_i == 10:
+                coeff_list = self.RandomBiomass("mean", "mean", "mean", "mean", "mean")
 
             minmax_pd[head][0]= self.PROTEIN(coeff_list[0])
             minmax_pd[head][1] = self.DNA_or_RNA(coeff_list[1],DNA_or_RNA="DNA")
             minmax_pd[head][2] = self.DNA_or_RNA(coeff_list[2],DNA_or_RNA="RNA")
-            minmax_pd[head][3] = self. LIPID(coeff_list[3])
-            minmax_pd[head][4] = self. BIOMASS(coeff_list[4], coeff_list[5])
+            minmax_pd[head][3] = self. CARB(coeff_list[3])
+            minmax_pd[head][4] = self. LIPID(coeff_list[4])
+            minmax_pd[head][5] = self. BIOMASS(coeff_list[5], coeff_list[6])
             for k in range(len(coeff_index)):
                 coeff_pd[head][k] = coeff_list[k]
 
@@ -292,23 +316,24 @@ class makeBiomass():
         DNAsyn = self._returnSynthesisEquation(df_in=DNAin,df_out=DNAout)
         return DNAsyn
 
-    # def CARB(self,Carb_per_DCW):
-    #     CARBpd = pd.read_excel(self.filename, sheet_name='CARBsyn', usecols="A:H", convert_float=True)
-    #     CARBin = CARBpd.iloc[0, :5]
-    #     gpergCARB = CARBin.iloc[0]
-    #
-    #     MW = CARBin.iloc[1]
-    #     CARBin.at["mmol/gDCW"] = Carb_per_DCW * gpergCARB / MW * 1000
-    #
-    #     coeff = CARBin.iloc[4]
-    #     species = CARBin.iloc[2]
-    #     compart = CARBin.iloc[3]
-    #
-    #     CARBsub = str(round(coeff,6)) + " " + species + "[" + compart + "]"
-    #
-    #     # PROTEIN BIOMASS
-    #     CARBsyn = CARBsub + " -> 1.0 carbohydrate[c]"
-    #     return CARBsyn
+    def CARB(self,Carb_per_DCW):
+        CARBpd = pd.read_excel(self.file2read, sheet_name='CARBsyn', usecols="A:H", convert_float=True)
+        CARBin = self._processBiomassFrame(df=CARBpd, in_or_out=-1)
+
+        for i in range(len(CARBin)):
+            gpergCARB = CARBin.iloc[i, 0]
+            MW = CARBin.iloc[i, 1]
+            CARBin.at[i, "mmol/gDCW"] = Carb_per_DCW * gpergCARB / MW * 1000
+
+        CARBout = self._processBiomassFrame(df=CARBpd, in_or_out=1)
+        for p_ind, p in enumerate(CARBout["Product"]):
+            if any(c == p.lower() for c in ("carbohydrate", "carb", "carbo")):
+                CARBout.at[p_ind, "mmol/gDCW.1"] = 1
+        print(CARBout)
+
+        # PROTEIN BIOMASS
+        CARBsyn = self._returnSynthesisEquation(df_in=CARBin, df_out=CARBout)
+        return CARBsyn
 
     def LIPID(self,LIPID_wt_per_DCW):
         LIPIDpd= pd.read_excel(self.file2read, sheet_name='LIPIDsyn', usecols="A:H" ,convert_float=True)
@@ -438,12 +463,13 @@ class makeBiomass():
 
 
 
-# if __name__ == '__main__':
-#     fileloc = ''
-#     filename = fileloc + '\Ecoli test1.xlsx'
-#
-#     a = makeBiomass(file2read=filename)
-#     b = a.Formulate_min_max()
+if __name__ == '__main__':
+    # fileloc = ''
+    # filename = fileloc + '\Ecoli test1.xlsx'
+    filename =  'Ecoli test1_sensitivityOnly.xlsx'
+
+    a = makeBiomass(file2read=filename)
+    b = a.Formulate_min_max()
 
 
 
