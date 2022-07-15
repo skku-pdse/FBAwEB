@@ -20,7 +20,7 @@ b=a.exportBiomassEqns()
 # Directory :
 	Script/main/formulate_biomass.py
 
-【Step 2; MATLAB】 run (p)FBAwEB
+【Step 2; MATLAB/Python】 run (p)FBAwEB
 
 (Example)
 ---------------------------------------
@@ -75,7 +75,7 @@ b2=a2.Formulate_min_max()
 	[ex. 'test/Ecoli test1.xlsx']
 
 
-【Step 2; MATLAB】 Sensitivity analysis monomer/macromolecular
+【Step 2; MATLAB/Python】 Sensitivity analysis monomer/macromolecular
 
 (Example)
 ---------------------------------------
