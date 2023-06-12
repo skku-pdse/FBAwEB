@@ -18,6 +18,15 @@ class randomBiomass():
 
     1. Input
         organism=''         # ecoli / yeast / cho
+                            # This 'organism' option is introduced to accommodate the variations in the metabolic networks of different models, particularly regarding lipid synthesis.
+                            For example, in the E. coli model, lipid synthesis is limited to fatty acids.
+                            On the other hand, the CHO cells model involves a broader range of lipid types, such as 'chsterol' and 'clpn_cho'.
+                            These lipid metabolites are produced through a synthesis network that incorporates metabolites denoted as "Rtotal" and "Rtotalcoa",
+                            which represent the relative composition of fatty acids.
+                            Each model has its unique metabolic structure and intermediate metabolites involved in biomass synthesis.
+                            Hence, we offer the organism option, enabling users to select the most relevant model according to their specific requirements
+                            and obtain the biomass equation accordingly.
+
         file2read=''        # Directory of biomass excel file (Ex: 'Ecoli test1.xlsx')
         sampling_n=         # The number of biomass equations to generate (Ex: 5000)
         macro_cols="A:W"    # This is the column range to use in the file2read (Ex: "Ecoli test1.xlsx').
