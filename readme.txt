@@ -6,7 +6,8 @@ This module generates an ensemble of biomass equations, with the number specifie
 
     1. Input
         organism=''         # ecoli / yeast / cho
-                            # This 'organism' option is introduced to accommodate the variations in the metabolic networks of different models, particularly 				    regarding lipid synthesis.
+                            # This 'organism' option is introduced to accommodate the variations in the metabolic networks of different models, particularly 
+							regarding lipid synthesis.
                             For example, in the E. coli model, lipid synthesis is limited to fatty acids.
                             On the other hand, the CHO cells model involves a broader range of lipid types, such as 'chsterol' and 'clpn_cho'.
                             These lipid metabolites are produced through a synthesis network that incorporates metabolites denoted as "Rtotal" and "Rtotalcoa",
@@ -27,12 +28,12 @@ This module generates an ensemble of biomass equations, with the number specifie
         In the Output result,
             "Random coefficient" Sheet:
                                         "Data Average" and "Data Stdev" refer to the average and standard deviation, respectively, of the biomass composition data 					   obtained from the biomass file (e.g., "Ecoli test1.xlsx").
-                                        "Norm_Data Average" represents the normalized biomass composition data used as a reference for the ensemble of biomass 						equations.
-                                        "Random Average" and "Random Stdec" represent the average and standard deviation of the biomass composition data for the 					 resulting 5000 ensemble biomass equations.
-                                        Columns from "0" to "4999" represent the different biomass compositions used for the 5000 biomass equations. These 						compositions were randomized within specific ranges based on the coefficient of variations (CVs).
+                                        "Norm_Data Average" represents the normalized biomass composition data used as a reference for the ensemble of biomass equations.
+                                        "Random Average" and "Random Stdec" represent the average and standard deviation of the biomass composition data for the resulting 5000 ensemble biomass equations.
+                                        Columns from "0" to "4999" represent the different biomass compositions used for the 5000 biomass equations. These compositions were randomized within specific ranges based on the coefficient of variations (CVs).
 
             "ref" Sheet:
-                                        The reference biomass equations formulated based on the biomass composition of "Norm_Data Average" column in the "Random 					 coefiiceint" sheet.
+                                        The reference biomass equations formulated based on the biomass composition of "Norm_Data Average" column in the "Random coefiiceint" sheet.
 
             "PROTsyn", "DNAsyn", ... "Biomass" Sheets:
                                         "PROTsyn" sheet provides 5000 distinct protein synthesis equations, with each row index corresponding to the column header 					   in the "Random coefficient" sheet.
@@ -52,12 +53,13 @@ This module generates an ensemble of biomass equations, with the number specifie
 【Step 2; Python/Matlab】 run (p)FBAwEB
 
 -Python-
+
 This function generates the results of the Flux Balance Analysis (FBA), where each column corresponds to one of the 5000 biomass equations.
 
 
     1. Input
         organism=''     # ecoli / yeast / cho
-                        # This 'organism' option is introduced to accommodate the variations in the metabolic networks of different models, particularly regarding 			   lipid synthesis.
+                        # This 'organism' option is introduced to accommodate the variations in the metabolic networks of different models, particularly regarding lipid synthesis.
                         For example, in the E. coli model, lipid synthesis is limited to fatty acids.
                         On the other hand, the CHO cells model involves a broader range of lipid types, such as 'chsterol' and 'clpn_cho'.
                         These lipid metabolites are produced through a synthesis network that incorporates metabolites denoted as "Rtotal" and "Rtotalcoa",
@@ -166,3 +168,4 @@ load('Model/GEMs_FBAwEB_c13.mat') $ or load('Model/GEMs_FBAwEB.mat')
 # Output :
 	'MACRO 2022-01-01_00_00_00cho.xlsx'
 	'MONO 2022-01-01_00_00_00cho.xlsx'
+
