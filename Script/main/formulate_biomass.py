@@ -1,4 +1,4 @@
-#-*-coding:utf-8-*-
+
 import pandas as pd
 from pandas import ExcelWriter
 from datetime import date, datetime
@@ -11,6 +11,47 @@ import os
 from tqdm import tqdm
 
 class randomBiomass():
+    """
+
+    This module generates an ensemble of biomass equations, with the number specified by the user.
+
+
+    1. Input
+        organism=''         # ecoli / yeast / cho
+        file2read=''        # Directory of biomass excel file (Ex: 'Ecoli test1.xlsx')
+        sampling_n=         # The number of biomass equations to generate (Ex: 5000)
+        macro_cols="A:W"    # This is the column range to use in the file2read (Ex: "Ecoli test1.xlsx').
+                            Use the range "A:W" unless you comprehensively understand the codes involved
+                            and intend to modify both the biomass excel file and the associated code accordingly.
+
+    2. Output
+        Output Directory = "{0}_Ensemble biomass_macro&FA +-2STDEV ... .xlsx' "  #{0} is organism name
+
+        In the Output result,
+            "Random coefficient" Sheet:
+                                        "Data Average" and "Data Stdev" refer to the average and standard deviation, respectively, of the biomass composition data obtained from the biomass file (e.g., "Ecoli test1.xlsx").
+                                        "Norm_Data Average" represents the normalized biomass composition data used as a reference for the ensemble of biomass equations.
+                                        "Random Average" and "Random Stdec" represent the average and standard deviation of the biomass composition data for the resulting 5000 ensemble biomass equations.
+                                        Columns from "0" to "4999" represent the different biomass compositions used for the 5000 biomass equations. These compositions were randomized within specific ranges based on the coefficient of variations (CVs).
+
+            "ref" Sheet:
+                                        The reference biomass equations formulated based on the biomass composition of "Norm_Data Average" column in the "Random coefiiceint" sheet.
+
+            "PROTsyn", "DNAsyn", ... "Biomass" Sheets:
+                                        "PROTsyn" sheet provides 5000 distinct protein synthesis equations, with each row index corresponding to the column header in the "Random coefficient" sheet.
+                                        Similarly, the same concept applies to other columns such as "DNAsyn" and "RNAsyn."
+                                        These columns also contain 5000 different equations for DNA synthesis and RNA synthesis, respectively.
+                                        In both cases, the row indices correspond to the column headers in the "Random coefficient" sheet.
+                                        The stoichiometric coefficients in all sheets from "PROTsyn" to "Biomass" have a unit of "mmol/gDCW/h"
+
+    3. Usage Example
+        testfile1='Ecoli test1.xlsx'
+        # Generate Ensemble biomass equations
+        a=randomBiomass(organism='ecoli',file2read=testfile1,sampling_n=5000,macro_cols="A:W")
+        # Save the result
+        b=a.exportBiomassEqns()
+
+    """
 
     def __init__(self,organism,file2read,sampling_n,macro_cols):
         self.organism=organism

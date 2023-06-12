@@ -6,30 +6,39 @@ from pathlib import Path
 from datetime import datetime
 import re
 def FBAwEB(organism,modelspath,model_variable,ensemblepath,solver):
-    # This function is a python version of 'Script/main/FBAwEB.m'
-    # https://github.com/skku-pdse/FBAwEB/blob/3e7799f19256c6a174b1a62389620b4a2d807eef/Script/main/FBAwEB.m
+    """
+    This function is a python version of 'Script/main/FBAwEB.m'
+    https://github.com/skku-pdse/FBAwEB/blob/3e7799f19256c6a174b1a62389620b4a2d807eef/Script/main/FBAwEB.m
 
-    # -----organism-----
-    # ecoli / yeast / cho
+    This function generates the results of the Flux Balance Analysis (FBA), where each column corresponds to one of the 5000 biomass equations.
 
-    # -----models-----
-    # GEMs_FBAwEB.mat directory
 
-    # -----Model variable-----
-    # ecoli_model_FBAwEB
-    # ecoli_model_anaerobic_FBAwEB
-    # yeast_model_800_glucose_FBAwEB
-    # yeast_model_800_ethanol_FBAwEB
-    # yeast_model_800_xylose_FBAwEB
-    # cho_model_control_FBAwEB
-    # cho_model_he_FBAwEB
-    # cho_model_le_FBAwEB
+    1. Input
+        organism=''     # ecoli / yeast / cho
+        modelspath=''   # GEMs_FBAwEB.mat directory
+        model_variable=''
+                        # This option is for model conditions
+                          ecoli_model_FBAwEB                # E.coli aerobic condition
+                          ecoli_model_anaerobic_FBAwEB      # E.coli anaerobic condition
+                          yeast_model_800_glucose_FBAwEB    # S.cerevisiae glucose condition
+                          yeast_model_800_ethanol_FBAwEB    # S.cerevisiae ethanol condition
+                          yeast_model_800_xylose_FBAwEB     # S.cerevisiae xylose condition
+                          cho_model_control_FBAwEB          # CHO cells control condition
+                          cho_model_he_FBAwEB               # CHO cells high expression condition
+                          cho_model_le_FBAwEB               # CHO cells low expression condition
+        ensemblepath='' # '$$$_Ensemble biomass_macro&FA +-2STDEV ... .xlsx' directory (Output file of formulate_biomass.py)
+        solver='gurobi'
 
-    # -----ensemblepath-----
-    # '$$$_Ensemble biomass_macro&FA +-2STDEV ... .xlsx' directory
+    2. Output
+        Output Directory = "FBAwEB result\{0}_pfBAwEB result_{1}.xlsx"  #{0} is organism name and {1} is date.
 
-    # -----solver-----
-    # we used solver gurobi
+
+    3. Usage Example
+        FBAwEB(ecoli,'GEMs_FBAwEB.mat','ecoli_model_FBAwEB','ECOLI_Ensemble biomass_macro&FA +-2STDEV_Feb04 15;24','gurobi')
+
+    """
+
+
 
     # result file name
     saveDir = "FBAwEB result"
@@ -186,14 +195,11 @@ def FBAwEB(organism,modelspath,model_variable,ensemblepath,solver):
         writer.save()
 
 
-
-
 if __name__ == '__main__':
     organism=''
     modelspath=''
     model_variable=""
     ensemblepath=''
     solver='gurobi'
-
     FBAwEB(organism,modelspath,model_variable,ensemblepath,solver)
 
