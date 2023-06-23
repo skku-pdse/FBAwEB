@@ -17,21 +17,15 @@ class randomBiomass():
 
 
     1. Input
-        organism=''         # ecoli / yeast / cho
-                            # This 'organism' option is introduced to accommodate the variations in the metabolic networks of different models, particularly regarding lipid synthesis.
-                            For example, in the E. coli model, lipid synthesis is limited to fatty acids.
-                            On the other hand, the CHO cells model involves a broader range of lipid types, such as 'chsterol' and 'clpn_cho'.
-                            These lipid metabolites are produced through a synthesis network that incorporates metabolites denoted as "Rtotal" and "Rtotalcoa",
-                            which represent the relative composition of fatty acids.
-                            Each model has its unique metabolic structure and intermediate metabolites involved in biomass synthesis.
-                            Hence, we offer the organism option, enabling users to select the most relevant model according to their specific requirements
-                            and obtain the biomass equation accordingly.
 
         file2read=''        # Directory of biomass excel file (Ex: 'Ecoli test1.xlsx')
+                            # The "Reactant" component of lipids must conform to the prescribed format provided in the LIPIDsyn sheet.
+                            # To determine the coefficient of each 'Reactant', such as pe160, the fatty acids and lipid kinds undergo individual normalization processes.
         sampling_n=         # The number of biomass equations to generate (Ex: 5000)
         macro_cols="A:W"    # This is the column range to use in the file2read (Ex: "Ecoli test1.xlsx').
                             Use the range "A:W" unless you comprehensively understand the codes involved
                             and intend to modify both the biomass excel file and the associated code accordingly.
+
 
     2. Output
         Output Directory = "{0}_Ensemble biomass_macro&FA +-2STDEV ... .xlsx' "  #{0} is organism name
@@ -62,22 +56,16 @@ class randomBiomass():
 
     """
 
-    def __init__(self,organism,file2read,sampling_n,macro_cols):
-        self.organism=organism
+    def __init__(self,file2read,sampling_n,macro_cols):
+
         self.date = datetime.now().strftime("%b%d %H;%M")
         self._commonReadCols="A:H"
         self.file2read =file2read
         self.sampling_n =sampling_n
         self.macro_cols=macro_cols
-        if organism.lower()=='ecoli':
-            self.file2save="ECOLI_Ensemble biomass_macro&FA +-2STDEV_{0}.xlsx".format(self.date)
-            self.BiomassSets=self.ecoliRandomBiomass()
-        elif organism.lower()=='yeast':
-            self.file2save="YEAST_Ensemble biomass_macro&FA +-2STDEV_{0}.xlsx".format(self.date)
-            self.BiomassSets=self.yeastRandomBiomass()
-        elif organism.lower()=='cho':
-            self.file2save="CHO_Ensemble biomass_macro&FA +-2STDEV_{0}.xlsx".format(self.date)
-            self.BiomassSets=self.choRandomBiomass()
+        self.file2save="Ensemble biomass_macro&FA +-2STDEV_{0}.xlsx".format(self.date)
+        self.BiomassSets=self.RandomBiomass()
+
 
     def _processBiomassFrame(self,_df,_in_or_out):
         if _in_or_out == 0 :
@@ -124,32 +112,17 @@ class randomBiomass():
             syn = sub + " -> " + pro
         return syn
 
-    def _makeRef(self,org,randomdf):
+    def _makeRef(self,randomdf):
         refDict=dict()
         refCol="Norm_Data Average"
         refDict["PROTsyn_ref"]=self.PROTEIN(randomdf.loc['Protein',refCol])
         refDict["DNAsyn_ref"]=self.DNA_or_RNA(randomdf.loc['Dna',refCol],DNA_or_RNA="DNA")
         refDict["RNAsyn_ref"]=self.DNA_or_RNA(randomdf.loc['Rna',refCol],DNA_or_RNA="RNA")
-        if org.lower() == 'ecoli':
-            refDict["LIPIDsyn_ref"]=self.ecoliLIPID(randomdf.loc['Lipid',refCol],FA_CV=0.7145)
-            refDict["BIOMASSn_ref"]=self.ecoliBIOMASS(randomdf.loc['Lps',refCol], randomdf.loc['Murein',refCol])
-            print (randomdf)
-        elif org.lower() == 'yeast' or org.lower() == 'scerevisiae':
-            refDict["CARBsyn_ref"] = self.CARB(randomdf.loc['Carbohydrate', refCol])
-            LIPIDfunc=self.yeastLIPID(randomdf.loc['Lipid',refCol],FA_CV=0.6679)
-            refDict["LIPIDsyn_ref"]=LIPIDfunc[0]
-            refDict["FAsyn_ref"] =LIPIDfunc[1]
-            refDict["BIOMASSsyn"] = self.yeastBIOMASS(yeast_norm_fac=randomdf[refCol][5] / 0.029)
+        refDict["CARBsyn_ref"]=self.CARB(randomdf.loc['Carb',refCol])
+        refDict["LIPIDsyn_ref"]=self.LIPID(randomdf.loc['Lipid',refCol],FA_CV=0.7145)
+        refDict["BIOMASS_ref"]=self.BIOMASS(randomdf.loc['Lps',refCol], randomdf.loc['Murein',refCol])
+        print (randomdf)
 
-        elif org.lower() == 'cho':
-            refDict["CARBsyn_ref"] = self.CARB(randomdf.loc['Carbohydrate', refCol])
-            LIPIDfunc=self.LIPID(randomdf.loc['Lipid',refCol],FA_CV=0.5205)
-            refDict["LIPIDsyn_ref"] = LIPIDfunc[0]
-            refDict["FATTYACIDsyn_ref"] =LIPIDfunc[1]
-            refDict["FATTYACIDCOAsyn_ref"] = LIPIDfunc[2]
-            refDict["BIOMASSsyn"]=self.choBIOMASS()
-        else :
-            refDict["ERROR"]=None
         return refDict
 
 
@@ -160,7 +133,7 @@ class randomBiomass():
         Path(saveDir).mkdir(parents=True,exist_ok=True)
         self.file2save=path.join(saveDir,self.file2save)
 
-        ref=self._makeRef(org=self.organism,randomdf=func[0])
+        ref=self._makeRef(randomdf=func[0])
         with ExcelWriter(self.file2save) as writer:
             func[0].to_excel(writer,sheet_name="Random coefficient")
             pd.DataFrame(ref,index=[0]).T.to_excel(writer, sheet_name='ref')
@@ -170,19 +143,17 @@ class randomBiomass():
             pd.DataFrame(func[5]).to_excel(writer, sheet_name='CARBsyn')
             pd.DataFrame(func[6]).to_excel(writer, sheet_name='LIPIDsyn')
             pd.DataFrame(func[7]).to_excel(writer, sheet_name='FAsyn')
-            if self.organism.lower() == 'cho':
-                pd.DataFrame(func[9]).to_excel(writer, sheet_name='FACOAsyn')
             pd.DataFrame(func[8]).to_excel(writer, sheet_name='biomass')
             writer.save()
         print ("Result has been saved in this file: ",self.file2save)
 
-    def ecoliRandomBiomass(self):
+    def RandomBiomass(self):
         pd.set_option("display.max_columns",999)
 
         _PROTlist=list()
         _DNAlist=list()
         _RNAlist=list()
-        # CARBlist=list()
+        _CARBlist=list()
         _LIPIDlist = list()
         _BIOMASSlist=list()
         #Overall composition
@@ -208,7 +179,7 @@ class randomBiomass():
             randomcoeffpd.loc[m, "Data Stdev"] = _all.loc[m, "stdev"]
 
         randomcoeffpd.index = randomcoeffpd.index.str.capitalize()
-        new_index = ["Protein", "Dna", "Rna", "Lipid", "Lps", "Murein", "Inorganic", "Soluble pool", "Sum"]
+        new_index = ["Protein", "Dna", "Rna", "Carb","Lipid", "Lps", "Murein", "Inorganic", "Soluble pool", "Sum"]
         for i, ind in enumerate(randomcoeffpd.index.values):
             if ind.capitalize() not in new_index :
                 if any(name.lower() in ind.lower() for name in ("ion", "metal", "debris")):
@@ -217,6 +188,8 @@ class randomBiomass():
                     randomcoeffpd.index.values[i] = "Dna"
                 elif "rna" in ind.lower():
                     randomcoeffpd.index.values[i] = "Rna"
+                elif "carbohydrate" in ind.lower():
+                    randomcoeffpd.index.values[i] = "Carb"
         randomcoeffpd.reindex(new_index)
 
         # Amount of DNA and RNA should be expressed as ratio to Protein. DNA/Protein, RNA/Protein
@@ -246,7 +219,7 @@ class randomBiomass():
         while len(randomcoeffpd.columns) < self.sampling_n + len(randomcoeffpd_default.columns) :
             coe_min_list=list()
             coe_max_list=list()
-            for r in range(4) : #Prot ~ LIPID
+            for r in range(5) : #Prot, DNA, RNA, Carb, Lipid
                 coe_min=randomcoeffpd["Norm_Data Average"][r] - 2 * randomcoeffpd["Data Stdev"][r]
                 coe_max = randomcoeffpd["Norm_Data Average"][r] + 2 * randomcoeffpd["Data Stdev"][r]
                 if coe_min < 0 :
@@ -257,23 +230,25 @@ class randomBiomass():
             PROTcoe = random.uniform(coe_min_list[0], coe_max_list[0])
             DNAcoe = random.uniform(coe_min_list[1], coe_max_list[1])
             RNAcoe = random.uniform(coe_min_list[2], coe_max_list[2])
-            LIPIDcoe = random.uniform(coe_min_list[3], coe_max_list[3])
-            LPScoe= randomcoeffpd["Norm_Data Average"][4]
-            Mureincoe=randomcoeffpd["Norm_Data Average"][5]
-            Inorganiccoe=randomcoeffpd["Norm_Data Average"][6]
-            Solublecoe=randomcoeffpd["Norm_Data Average"][7]
+            CARBcoe =random.uniform(coe_min_list[3], coe_max_list[3])
+            LIPIDcoe = random.uniform(coe_min_list[4], coe_max_list[4])
+            LPScoe= randomcoeffpd["Norm_Data Average"][5]
+            Mureincoe=randomcoeffpd["Norm_Data Average"][6]
+            Inorganiccoe=randomcoeffpd["Norm_Data Average"][7]
+            Solublecoe=randomcoeffpd["Norm_Data Average"][8]
 
-            varing_coe=PROTcoe+DNAcoe+RNAcoe+LIPIDcoe
+            varing_coe=PROTcoe+DNAcoe+RNAcoe+CARBcoe+LIPIDcoe
             fixed_coe=LPScoe+Mureincoe+Inorganiccoe+ Solublecoe
 
             PROTcoe_nor= PROTcoe/varing_coe*(1-fixed_coe)
             DNAcoe_nor=DNAcoe/varing_coe*(1-fixed_coe)
             RNAcoe_nor = RNAcoe / varing_coe*(1-fixed_coe)
+            CARBcoe_nor = CARBcoe / varing_coe * (1 - fixed_coe)
             LIPIDcoe_nor = LIPIDcoe / varing_coe*(1-fixed_coe)
 
-            totalwt_nor=PROTcoe_nor+DNAcoe_nor+RNAcoe_nor+LIPIDcoe_nor+fixed_coe
+            totalwt_nor=PROTcoe_nor+DNAcoe_nor+RNAcoe_nor+CARBcoe_nor+LIPIDcoe_nor+fixed_coe
 
-            randomcoeffpd[str(col_k)] = [PROTcoe_nor, DNAcoe_nor, RNAcoe_nor, LIPIDcoe_nor, LPScoe, Mureincoe,
+            randomcoeffpd[str(col_k)] = [PROTcoe_nor, DNAcoe_nor, RNAcoe_nor, CARBcoe_nor, LIPIDcoe_nor, LPScoe, Mureincoe,
                                          Inorganiccoe, Solublecoe, totalwt_nor]
             col_k += 1
 
@@ -294,266 +269,18 @@ class randomBiomass():
                 _PROTsyn=self.PROTEIN(randomcoeffpd.iloc[0,col_i])
                 _DNAsyn=self.DNA_or_RNA(randomcoeffpd.iloc[1,col_i],DNA_or_RNA="DNA")
                 _RNAsyn=self.DNA_or_RNA(randomcoeffpd.iloc[2,col_i],DNA_or_RNA="RNA")
-                _LIPIDsyn=self.ecoliLIPID(randomcoeffpd.iloc[3,col_i],FA_CV=0.7145)
-                _BIOMASSsyn= self.ecoliBIOMASS(randomcoeffpd.iloc[4,col_i],randomcoeffpd.iloc[5,col_i])
-                _PROTlist.append(_PROTsyn)
-                _DNAlist.append(_DNAsyn)
-                _RNAlist.append(_RNAsyn)
-                _LIPIDlist.append(_LIPIDsyn)
-                _BIOMASSlist.append(_BIOMASSsyn)
-
-        return randomcoeffpd,["NA"],_PROTlist,_DNAlist,_RNAlist,["NA"],_LIPIDlist,["NA"],_BIOMASSlist
-
-    def yeastRandomBiomass(self):
-
-        pd.set_option("display.max_columns",999)
-
-        _PROTlist=list()
-        _DNAlist=list()
-        _RNAlist=list()
-        _CARBlist=list()
-        _LIPIDlist = list()
-        _FAlist= list()
-        _BIOMASSlist=list()
-        #Overall composition
-        _all = pd.read_excel(self.file2read, sheet_name='Overall',usecols=self.macro_cols,convert_float=True)
-        _all=_all.set_index(_all.columns[0])
-
-        _all["mean"]=_all.mean(axis=1)
-        _all["stdev"]=_all.iloc[:,:-1].std(axis=1)
-
-        component_list_default=_all.index.values
-        component_list = [ x for x in component_list_default if x not in ("Sum", "sum", "Total", "total", "Summation", "summation")]
-        component_list.append("Sum")
-
-        randomcoeffpd_default=pd.DataFrame({"Component":component_list,"Data Average":[np.nan]*len(component_list),"Data Stdev":[np.nan]*len(component_list),
-                                    "Norm_Data Average": [np.nan] * len(component_list),
-                                    "Random Average": [np.nan] * len(component_list), "Random Stdev": [np.nan] * len(component_list)})
-
-        randomcoeffpd_default=randomcoeffpd_default.set_index(randomcoeffpd_default.columns[0])
-        randomcoeffpd = randomcoeffpd_default.copy()
-
-
-
-        for m in component_list[:-1]:
-            randomcoeffpd.loc[m, "Data Average"] = _all.loc[m, "mean"]
-            randomcoeffpd.loc[m, "Data Stdev"] = _all.loc[m, "stdev"]
-        randomcoeffpd.loc["Sum", "Data Average"]= randomcoeffpd["Data Average"][:len(component_list)-1].sum(axis=0)
-
-        # Normalization of average value
-        for i in randomcoeffpd.index.values:
-            randomcoeffpd.loc[i, "Norm_Data Average"] = randomcoeffpd.loc[i,"Data Average"]/ randomcoeffpd["Data Average"][len(component_list)-1]
-
-        randomcoeffpd.loc["Sum","Norm_Data Average"] =randomcoeffpd["Norm_Data Average"][:len(component_list)-1].sum(axis=0)
-
-        #biomass normalization factor_only use for yeast
-        yeast_norm_fac = randomcoeffpd["Norm_Data Average"][5] / 0.029
-
-        randomcoeffpd.index=randomcoeffpd.index.str.capitalize()
-        new_index=["Protein", "Dna", "Rna", "Carbohydrate", "Lipid","Ion", "Sum"]
-        for i,ind in enumerate(randomcoeffpd.index.values):
-            if (ind.capitalize() not in new_index) and (any (name.lower() in ind.lower() for name in ("ion", "metal","debris"))):
-                randomcoeffpd.index.values[i]="Ion"
-            else :
-                pass
-        randomcoeffpd.reindex(new_index)
-
-
-        col_k=0
-        while len(randomcoeffpd.columns) < self.sampling_n + len(randomcoeffpd_default.columns) :
-            breakthis = True
-            coe_min_list=list()
-            coe_max_list=list()
-            for r in range(5):
-                coe_min = randomcoeffpd["Norm_Data Average"][r] - 2 * randomcoeffpd["Data Stdev"][r]
-                coe_max = randomcoeffpd["Norm_Data Average"][r] + 2 * randomcoeffpd["Data Stdev"][r]
-                if coe_min < 0:
-                    coe_min = 0
-                coe_min_list.append(coe_min)
-                coe_max_list.append(coe_max)
-
-            PROTcoe = random.uniform(coe_min_list[0], coe_max_list[0])
-            DNAcoe = random.uniform(coe_min_list[1], coe_max_list[1])
-            RNAcoe = random.uniform(coe_min_list[2], coe_max_list[2])
-            CARBcoe = random.uniform(coe_min_list[3], coe_max_list[3])
-            LIPIDcoe = random.uniform(coe_min_list[4], coe_max_list[4])
-
-
-
-            IonCofcoe= randomcoeffpd["Norm_Data Average"][5]
-
-            varing_coe=PROTcoe+DNAcoe+RNAcoe+CARBcoe+LIPIDcoe
-            fixed_coe=IonCofcoe
-
-            PROTcoe_nor= PROTcoe/varing_coe*(1-fixed_coe)
-            DNAcoe_nor=DNAcoe/varing_coe*(1-fixed_coe)
-            RNAcoe_nor = RNAcoe / varing_coe*(1-fixed_coe)
-            CARBcoe_nor = CARBcoe / varing_coe*(1-fixed_coe)
-            LIPIDcoe_nor = LIPIDcoe / varing_coe*(1-fixed_coe)
-            totalwt_nor=PROTcoe_nor+DNAcoe_nor+RNAcoe_nor+CARBcoe_nor+LIPIDcoe_nor +fixed_coe
-
-            randomcoeffpd[str(col_k)] = [PROTcoe_nor,DNAcoe_nor,RNAcoe_nor,CARBcoe_nor,LIPIDcoe_nor,IonCofcoe,totalwt_nor]
-            col_k += 1
-
-
-        # Random result summary
-        for i, r in enumerate(randomcoeffpd.index.values):
-            randomcoeffpd.loc[r, "Random Average"] = randomcoeffpd.iloc[i, len(randomcoeffpd_default.columns):].mean(
-                skipna=True)
-            randomcoeffpd.loc[r, "Random Stdev"] = randomcoeffpd.iloc[i, len(randomcoeffpd_default.columns):].std(
-                skipna=True)
-
-        # multiple overall composition loop
-        for col_i in tqdm(range(len(randomcoeffpd.columns))):
-            if col_i >= len(randomcoeffpd_default.columns):
-                randomcoeffpd.iloc[len(component_list)-1,col_i]= randomcoeffpd.iloc[:len(component_list)-1, col_i].sum(axis=0)
-                #
-                _PROTsyn=self.PROTEIN(randomcoeffpd.iloc[0,col_i])
-                _DNAsyn=self.DNA_or_RNA(randomcoeffpd.iloc[1,col_i],DNA_or_RNA="DNA")
-                _RNAsyn=self.DNA_or_RNA(randomcoeffpd.iloc[2,col_i],DNA_or_RNA="RNA")
                 _CARBsyn = self.CARB(randomcoeffpd.iloc[3, col_i])
-                _LipFA=self.yeastLIPID(randomcoeffpd.iloc[4,col_i],FA_CV=0.6679)
-                _LIPIDsyn=_LipFA[0]
-                _FAsyn=_LipFA[1]
-                _BIOMASSsyn= self.yeastBIOMASS(yeast_norm_fac)
-
+                _LIPIDsyn=self.LIPID(randomcoeffpd.iloc[4,col_i],FA_CV=0.7145)
+                _BIOMASSsyn= self.BIOMASS(randomcoeffpd.iloc[5,col_i],randomcoeffpd.iloc[6,col_i])
                 _PROTlist.append(_PROTsyn)
                 _DNAlist.append(_DNAsyn)
                 _RNAlist.append(_RNAsyn)
                 _CARBlist.append(_CARBsyn)
                 _LIPIDlist.append(_LIPIDsyn)
-                _FAlist.append(_FAsyn)
                 _BIOMASSlist.append(_BIOMASSsyn)
-        return randomcoeffpd, None , _PROTlist, _DNAlist, _RNAlist, _CARBlist, _LIPIDlist,_FAlist, _BIOMASSlist
 
-    def choRandomBiomass(self):
-        pd.set_option("display.max_columns", 999)
+        return randomcoeffpd,["NA"],_PROTlist,_DNAlist,_RNAlist,_CARBlist,_LIPIDlist,["NA"],_BIOMASSlist
 
-        _PROTlist = list()
-        _DNAlist = list()
-        _RNAlist = list()
-        _CARBlist = list()
-        _LIPIDlist = list()
-        _FAlist=list()
-        _FACOAlist=list()
-        _BIOMASSlist = list()
-        # Overall composition
-        all = pd.read_excel(self.file2read, sheet_name='Overall', usecols=self.macro_cols, convert_float=True)
-        all=all.set_index(all.columns[0])
-
-        # USE average and stdev
-        all["mean"] = all.mean(axis=1)
-        all["stdev"] = all.iloc[:, :-1].std(axis=1)
-
-        component_list = all.index.values
-        if any(c.lower() in ["sum","total","summation"] for c in component_list):
-            pass
-        else:
-            component_list.append("Sum")
-        randomcoeffpd_default = pd.DataFrame(
-            {"Component": component_list, "Data Average": [np.nan] * len(component_list),
-             "Data Stdev": [np.nan] * len(component_list),
-             "Norm_Data Average": [np.nan] * len(component_list),
-             "Random Average": [np.nan] * len(component_list), "Random Stdev": [np.nan] * len(component_list)})
-
-        randomcoeffpd_default=randomcoeffpd_default.set_index(randomcoeffpd_default.columns[0])
-        randomcoeffpd = randomcoeffpd_default.copy()
-
-        for m in component_list[:-1]:
-            randomcoeffpd.loc[m, "Data Average"] = all.loc[m, "mean"]
-            randomcoeffpd.loc[m, "Data Stdev"] = all.loc[m, "stdev"]
-        randomcoeffpd.loc["Sum", "Data Average"] = randomcoeffpd["Data Average"][
-                                                                    :len(component_list) - 1].sum(axis=0)
-
-        # Normalization of average value
-        for i in randomcoeffpd.index.values:
-            randomcoeffpd.loc[i, "Norm_Data Average"] = randomcoeffpd.loc[i,"Data Average"] / randomcoeffpd.loc["Sum", "Data Average"]
-
-        randomcoeffpd.loc["Sum", "Norm_Data Average"] = randomcoeffpd["Norm_Data Average"][
-                                                                         :len(component_list) - 1].sum(axis=0)
-
-        # biomass normalization factor
-        norm_fac = randomcoeffpd["Norm_Data Average"][len(component_list) - 1] / randomcoeffpd["Data Average"][
-            len(component_list) - 1]
-
-        randomcoeffpd.index = randomcoeffpd.index.str.capitalize()
-        new_index = ["Protein", "DNA", "RNA", "Carbohydrate", "Lipid", "Sum"]
-        if len(randomcoeffpd.index.values) > len(new_index) :
-            for m in randomcoeffpd.index.values :
-                if m.capitalize() not in new_index :
-                    new_index.append(m.capitalize())
-                    print ("Script should be edited")
-        for i, ind in enumerate(randomcoeffpd.index.values):
-            if (ind.capitalize() not in new_index) and (
-            any(name.lower() == ind.lower() for name in ("ion", "metal", "debris"))):
-                randomcoeffpd.index.values[i] = "Ion"
-            else:
-                pass
-        randomcoeffpd.reindex(new_index)
-
-        col_k = 0
-        while len(randomcoeffpd.columns) < self.sampling_n + len(randomcoeffpd_default.columns):
-            breakthis = True
-            coe_min_list=list()
-            coe_max_list=list()
-            for r in range(5):
-                coe_min = randomcoeffpd["Norm_Data Average"][r] - 2 * randomcoeffpd["Data Stdev"][r]
-                coe_max = randomcoeffpd["Norm_Data Average"][r] + 2 * randomcoeffpd["Data Stdev"][r]
-                if coe_min < 0:
-                    coe_min = 0
-                coe_min_list.append(coe_min)
-                coe_max_list.append(coe_max)
-
-            PROTcoe = random.uniform(coe_min_list[0], coe_max_list[0])
-            DNAcoe = random.uniform(coe_min_list[1], coe_max_list[1])
-            RNAcoe = random.uniform(coe_min_list[2], coe_max_list[2])
-            CARBcoe = random.uniform(coe_min_list[3], coe_max_list[3])
-            LIPIDcoe = random.uniform(coe_min_list[4], coe_max_list[4])
-
-            totalwt = PROTcoe + DNAcoe + RNAcoe + CARBcoe + LIPIDcoe
-
-            PROTcoe_nor= PROTcoe/totalwt
-            DNAcoe_nor=DNAcoe/totalwt
-            RNAcoe_nor = RNAcoe / totalwt
-            CARBcoe_nor = CARBcoe / totalwt
-            LIPIDcoe_nor = LIPIDcoe / totalwt
-            totalwt_nor=PROTcoe_nor+DNAcoe_nor+RNAcoe_nor+CARBcoe_nor+LIPIDcoe_nor
-
-
-            randomcoeffpd[str(col_k)] = [PROTcoe_nor,DNAcoe_nor,RNAcoe_nor,CARBcoe_nor,LIPIDcoe_nor, totalwt_nor]
-            col_k += 1
-
-        # Random result summary
-        for i, r in enumerate(randomcoeffpd.index.values):
-            randomcoeffpd.loc[r, "Random Average"] = randomcoeffpd.iloc[i, len(randomcoeffpd_default.columns):].mean(
-                skipna=True)
-            randomcoeffpd.loc[r, "Random Stdev"] = randomcoeffpd.iloc[i, len(randomcoeffpd_default.columns):].std(
-                skipna=True)
-
-        # multiple overall composition loop
-        for col_i, head in enumerate(tqdm(list(randomcoeffpd.columns))):
-            if col_i >= len(randomcoeffpd_default.columns):
-                randomcoeffpd.loc["Sum", head] = randomcoeffpd.iloc[:len(component_list) - 1,col_i].sum(axis=0)
-
-                _PROTsyn = self.PROTEIN(randomcoeffpd.iloc[0, col_i])
-                _DNAsyn = self.DNA_or_RNA(randomcoeffpd.iloc[1, col_i], DNA_or_RNA="DNA")
-                _RNAsyn = self.DNA_or_RNA(randomcoeffpd.iloc[2, col_i], DNA_or_RNA="RNA")
-                _CARBsyn = self.CARB(randomcoeffpd.iloc[3, col_i])
-                _LIPID= self.LIPID(randomcoeffpd.iloc[4, col_i],FA_CV=0.5205)
-                _LIPIDsyn =_LIPID[0]
-                _FAsyn = _LIPID[1]
-                _FACOAsyn = _LIPID[2]
-                _BIOMASSsyn = self.choBIOMASS()
-
-                _PROTlist.append(_PROTsyn)
-                _DNAlist.append(_DNAsyn)
-                _RNAlist.append(_RNAsyn)
-                _CARBlist.append(_CARBsyn)
-                _LIPIDlist.append(_LIPIDsyn)
-                _FAlist.append(_FAsyn)
-                _BIOMASSlist.append(_BIOMASSsyn)
-                _FACOAlist.append(_FACOAsyn)
-        return randomcoeffpd,None,_PROTlist,_DNAlist,_RNAlist,_CARBlist,_LIPIDlist,_FAlist,_BIOMASSlist, _FACOAlist
 
     def PROTEIN(self,Prot_wt_per_DCW):
 
@@ -584,13 +311,13 @@ class randomBiomass():
 
         DNApd = pd.read_excel(self.file2read, sheet_name=DNA_or_RNA+"syn", usecols=self._commonReadCols, convert_float=True)
         DNAin = self._processBiomassFrame(DNApd, -1)
-        # Nucleotide in
+        # Nucleotides in
         for i in range(len(DNAin)):
             gDNApergDCW = DNAin.iloc[i, 0]
             MW = DNAin.iloc[i, 1]
             DNAin.at[i, "mmol/gDCW"] = wt_per_DCW * gDNApergDCW / MW * 1000
 
-        # DNA out
+        # Nucleotides out
         DNAout = self._processBiomassFrame(DNApd, 1)
 
         for p_ind,p in enumerate(DNAout["Product"]):
@@ -604,7 +331,7 @@ class randomBiomass():
     def CARB(self,Carb_per_DCW):
         CARBpd = pd.read_excel(self.file2read, sheet_name='CARBsyn', usecols=self._commonReadCols, convert_float=True)
         CARBin = self._processBiomassFrame(CARBpd, -1)
-        #MEMO
+        # Note
         #     gpergCARB = CARBin.iloc[:, 0]
         #     MW = CARBin.iloc[:, 1]
         #     CARBin["mmol/gDCW"] = Carb_per_DCW * gpergCARB / MW * 1000
@@ -617,65 +344,66 @@ class randomBiomass():
         CARBsyn=self._returnSynthesisEquation(CARBin,CARBout)
         return CARBsyn
 
-    def ecoliLIPID(self,LIPID_wt_per_DCW,FA_CV):
+    def LIPID(self,LIPID_wt_per_DCW,FA_CV):
         LIPIDpd = pd.read_excel(self.file2read, sheet_name='LIPIDsyn', usecols=self._commonReadCols, convert_float=True)
 
         LIPIDin = self._processBiomassFrame(_df=LIPIDpd, _in_or_out=-1)
 
-        # FATTY ACID#####################################
-        Lipid_mono_ratio_df = pd.DataFrame({"pe": np.nan * 3, "pg": np.nan * 3, "clpn": np.nan * 3},
-                                           index=["160", "161", "181"])
+        _Lipids = LIPIDin["Reactant"].str.extract(r'(\D+)').values.tolist()
+        _FAs = LIPIDin["Reactant"].str.extract(r'(\d+)').values.tolist()
+        Lipids = []
+        FAs = []
+        for i in _Lipids:
+            if i[0] not in Lipids:
+                Lipids.append(i[0])
+        for j in _FAs:
+            if j[0] not in FAs:
+                FAs.append(j[0])
 
-        for l_i, l in enumerate(LIPIDin["Reactant"]):
-            if "pe" in l:
-                col_loc = 0
-            elif "pg" in l:
-                col_loc = 1
-            elif "clpn" in l:
-                col_loc = 2
+        # FATTY ACID
+        Lipid_mono_ratio_df = pd.DataFrame(columns=Lipids, index=FAs)
 
-            if "160" in l:
-                row_loc = 0
-            elif "161" in l:
-                row_loc = 1
-            elif "181" in l:
-                row_loc = 2
-            Lipid_mono_ratio_df.iloc[row_loc, col_loc] = LIPIDin["g/g Lipid"][l_i] / LIPIDin["g/g Lipid"].sum()
+        for l_i, l in enumerate(Lipids):
+            for l_j, j in enumerate(FAs):
+                lipid_fa = l + j
+                gpergLipid = LIPIDin["g/g Lipid"][LIPIDin['Reactant'] == lipid_fa].values[0]
+                Lipid_mono_ratio_df.iloc[l_j, l_i] = gpergLipid / LIPIDin["g/g Lipid"].sum()
 
         Lipid_mono_ratio_df["FA_Sum"] = Lipid_mono_ratio_df.sum(axis=1)
         Lipid_mono_ratio_df.loc["Sum"] = Lipid_mono_ratio_df.sum(axis=0)
-        Fatty_acid_ratio = pd.DataFrame({"ref": list(Lipid_mono_ratio_df["FA_Sum"][:-1])}, index=["160", "161", "181"])
-        new_fa=list()
-        #Fatty acid random sampling
+        Fatty_acid_ratio = pd.DataFrame({"ref": list(Lipid_mono_ratio_df["FA_Sum"][:-1])}, index=FAs)
 
-        fa_i=0
-        while len(new_fa) < len(Fatty_acid_ratio): #3
-            ref_ratio=Fatty_acid_ratio['ref'][fa_i]
-            coe_min = ref_ratio*(1 - 2 * FA_CV)
-            coe_max = ref_ratio*(1 + 2 * FA_CV)
-            if coe_min < 0 :
-                coe_min=0
-            rand_coe=random.uniform(coe_min,coe_max)
+        new_fa = list()
+        # Fatty acid random sampling
+
+        fa_i = 0
+        while len(new_fa) < len(Fatty_acid_ratio):  # 3
+            ref_ratio = Fatty_acid_ratio['ref'][fa_i]
+            coe_min = ref_ratio * (1 - 2 * FA_CV)
+            coe_max = ref_ratio * (1 + 2 * FA_CV)
+            if coe_min < 0:
+                coe_min = 0
+            rand_coe = random.uniform(coe_min, coe_max)
             new_fa.append(rand_coe)
-            fa_i+=1
+            fa_i += 1
 
-        #Fatty acid ratio normalization
-        norm_new_fa=np.divide(new_fa, sum(new_fa))
+        # Fatty acid ratio normalization
+        norm_new_fa = np.divide(new_fa, sum(new_fa))
         Fatty_acid_ratio["normalized_fa_coe"] = norm_new_fa
 
-        #End
-        Lipid_kind_ratio = pd.DataFrame(
-            {"pe": [Lipid_mono_ratio_df.loc["Sum", "pe"]], "pg": [Lipid_mono_ratio_df.loc["Sum", "pg"]],
-             "clpn": [Lipid_mono_ratio_df.loc["Sum", "clpn"]]}, index=["ref"])
+        # End
+        Lipid_kind_ratio = pd.DataFrame(columns=Lipids, index=["ref"])
+        for i, i_c in enumerate(Lipid_kind_ratio.columns):
+            Lipid_kind_ratio[i_c] = list(Lipid_mono_ratio_df.loc["Sum"])[:-1][i]
 
-        for l_i, l_kind in enumerate(["pe", "pg", "clpn"]):
-            Lipid_mono_ratio_df.iloc[0, l_i] = Fatty_acid_ratio["normalized_fa_coe"][0] * Lipid_kind_ratio[l_kind][0]
-            Lipid_mono_ratio_df.iloc[1, l_i] = Fatty_acid_ratio["normalized_fa_coe"][1] * Lipid_kind_ratio[l_kind][0]
-            Lipid_mono_ratio_df.iloc[2, l_i] = Fatty_acid_ratio["normalized_fa_coe"][2] * Lipid_kind_ratio[l_kind][0]
+        for l_i, l_kind in enumerate(Lipids):
+            for f_j, f_kind in enumerate(FAs):
+                Lipid_mono_ratio_df.iloc[f_j, l_i] = Fatty_acid_ratio["normalized_fa_coe"].loc[f_kind] * \
+                                                     Lipid_kind_ratio[l_kind]
 
         lipid_coeff_dict = dict()
-        for c in ["pe", "pg", "clpn"]:
-            for f in ["160", "161", "181"]:
+        for c in Lipids:
+            for f in FAs:
                 lipid_mono = c + f
                 monomer_g = Lipid_mono_ratio_df.loc[f, c]
                 lipid_coeff_dict[lipid_mono] = monomer_g
@@ -692,125 +420,82 @@ class randomBiomass():
 
         return LIPIDsyn
 
-    def yeastLIPID(self,LIPID_wt_per_DCW,FA_CV):
-        LIPIDpd= pd.read_excel(self.file2read, sheet_name='LIPIDsyn', usecols=self._commonReadCols ,convert_float=True)
+    # def LIPID(self,LIPID_wt_per_DCW,FA_CV):
+    #     LIPIDpd = pd.read_excel(self.file2read, sheet_name='LIPIDsyn', usecols=self._commonReadCols, convert_float=True)
+    #
+    #     LIPIDin = self._processBiomassFrame(_df=LIPIDpd, _in_or_out=-1)
+    #
+    #     # FATTY ACID#####################################
+    #     Lipid_mono_ratio_df = pd.DataFrame({"pe": np.nan * 3, "pg": np.nan * 3, "clpn": np.nan * 3},
+    #                                        index=["160", "161", "181"])
+    #
+    #     for l_i, l in enumerate(LIPIDin["Reactant"]):
+    #         if "pe" in l:
+    #             col_loc = 0
+    #         elif "pg" in l:
+    #             col_loc = 1
+    #         elif "clpn" in l:
+    #             col_loc = 2
+    #
+    #         if "160" in l:
+    #             row_loc = 0
+    #         elif "161" in l:
+    #             row_loc = 1
+    #         elif "181" in l:
+    #             row_loc = 2
+    #         Lipid_mono_ratio_df.iloc[row_loc, col_loc] = LIPIDin["g/g Lipid"][l_i] / LIPIDin["g/g Lipid"].sum()
+    #
+    #     Lipid_mono_ratio_df["FA_Sum"] = Lipid_mono_ratio_df.sum(axis=1)
+    #     Lipid_mono_ratio_df.loc["Sum"] = Lipid_mono_ratio_df.sum(axis=0)
+    #     Fatty_acid_ratio = pd.DataFrame({"ref": list(Lipid_mono_ratio_df["FA_Sum"][:-1])}, index=["160", "161", "181"])
+    #     new_fa=list()
+    #     #Fatty acid random sampling
+    #
+    #     fa_i=0
+    #     while len(new_fa) < len(Fatty_acid_ratio): #3
+    #         ref_ratio=Fatty_acid_ratio['ref'][fa_i]
+    #         coe_min = ref_ratio*(1 - 2 * FA_CV)
+    #         coe_max = ref_ratio*(1 + 2 * FA_CV)
+    #         if coe_min < 0 :
+    #             coe_min=0
+    #         rand_coe=random.uniform(coe_min,coe_max)
+    #         new_fa.append(rand_coe)
+    #         fa_i+=1
+    #
+    #     #Fatty acid ratio normalization
+    #     norm_new_fa=np.divide(new_fa, sum(new_fa))
+    #     Fatty_acid_ratio["normalized_fa_coe"] = norm_new_fa
+    #
+    #     #End
+    #     Lipid_kind_ratio = pd.DataFrame(
+    #         {"pe": [Lipid_mono_ratio_df.loc["Sum", "pe"]], "pg": [Lipid_mono_ratio_df.loc["Sum", "pg"]],
+    #          "clpn": [Lipid_mono_ratio_df.loc["Sum", "clpn"]]}, index=["ref"])
+    #
+    #     for l_i, l_kind in enumerate(["pe", "pg", "clpn"]):
+    #         Lipid_mono_ratio_df.iloc[0, l_i] = Fatty_acid_ratio["normalized_fa_coe"][0] * Lipid_kind_ratio[l_kind][0]
+    #         Lipid_mono_ratio_df.iloc[1, l_i] = Fatty_acid_ratio["normalized_fa_coe"][1] * Lipid_kind_ratio[l_kind][0]
+    #         Lipid_mono_ratio_df.iloc[2, l_i] = Fatty_acid_ratio["normalized_fa_coe"][2] * Lipid_kind_ratio[l_kind][0]
+    #
+    #     lipid_coeff_dict = dict()
+    #     for c in ["pe", "pg", "clpn"]:
+    #         for f in ["160", "161", "181"]:
+    #             lipid_mono = c + f
+    #             monomer_g = Lipid_mono_ratio_df.loc[f, c]
+    #             lipid_coeff_dict[lipid_mono] = monomer_g
+    #
+    #     for i in range(len(LIPIDin)):
+    #         lipid_comp = LIPIDin["Reactant"][i]
+    #         gpergP = lipid_coeff_dict[lipid_comp]
+    #         MW = LIPIDin.iloc[i, 1]
+    #         LIPIDin.loc[i, "mmol/gDCW"] = gpergP / MW * 1000 * LIPID_wt_per_DCW
+    #
+    #     # LIPID out
+    #     LIPIDout = self._processBiomassFrame(_df=LIPIDpd, _in_or_out=1)
+    #     LIPIDsyn = self._returnSynthesisEquation(LIPIDin, LIPIDout)
+    #
+    #     return LIPIDsyn
 
-        #Lipid in
-        LIPIDin= self._processBiomassFrame(LIPIDpd, -1)
-        AverageLipidMW=LIPIDin.iloc[0,1]
-        LIPIDin["mmol/gDCW"]= LIPIDin.iloc[:,0]/AverageLipidMW*LIPID_wt_per_DCW*1000
-
-        #Lipid out
-        LIPIDout=self._processBiomassFrame(LIPIDpd, 1)
-        LIPIDsyn = self._returnSynthesisEquation(LIPIDin, LIPIDout)
-
-        if type(FA_CV) == float and FA_CV >= 0 :
-
-            #Fatty acid
-            FApd = pd.read_excel(self.file2read, sheet_name='FattyAcidSyn', usecols=self._commonReadCols, convert_float=True)
-            FAin = self._processBiomassFrame(FApd, -1)
-
-            gpergFA_Series = FAin.iloc[:,0]
-
-            molpergFA_Series = gpergFA_Series / FAin["MW"].values
-
-            molpermolFA_Series = molpergFA_Series / molpergFA_Series.sum()
-
-            new_fa=list()
-            fa_i=0
-            while len(new_fa) < len(molpermolFA_Series):
-                coe_min = molpermolFA_Series[fa_i]*(1- 2*FA_CV)
-                coe_max = molpermolFA_Series[fa_i]*(1+ 2*FA_CV)
-                if coe_min < 0:
-                    coe_min=0
-                rand_coe= random.uniform(coe_min, coe_max)
-                new_fa.append(rand_coe)
-                fa_i +=1
-
-            norm_new_fa=np.divide(new_fa,sum(new_fa))
-            FAin["mol/mol"]=norm_new_fa
-
-            FAout=self._processBiomassFrame(FApd,1)
-            FAsyn = self._returnSynthesisEquation(FAin, FAout)
-
-        else : # No variation of Fatty acid
-            FApd = pd.read_excel(self.file2read, sheet_name='FattyAcidSyn', usecols=self._commonReadCols, convert_float=True)
-            FAin = self._processBiomassFrame(FApd, -1)
-            FA_list_default = FAin["Reactant"]
-            FA_list = [x for x in FA_list_default if
-                       x not in ("Sum", "sum", "Total", "total", "Summation", "summation")]
-            FA_list.append("Sum")
-            mean_list = FAin.iloc[:, 0].tolist()
-            mean_list.append(0)
-            FA_minmax_pd = pd.DataFrame({"Component": FA_list, "mean": mean_list})
-            FA_minmax_pd = FA_minmax_pd.set_index(FA_minmax_pd.columns[0])
-
-            FA_minmax_pd.loc["Sum", "mean"] = FA_minmax_pd["mean"][:-1].sum(axis=0)
-            FA_minmax_pd["norm_mean"] = FA_minmax_pd["mean"] / FA_minmax_pd.loc["Sum", "mean"]
-
-            FA_list.remove("Sum")
-            FA_component_list = FA_list
-            gpergFA_Series = FA_minmax_pd["norm_mean"][:-1]
-            molpergFA_Series = gpergFA_Series / FAin["MW"]
-            molpermolFA_Series = molpergFA_Series / molpergFA_Series.sum()
-            FAin["mol/mol"] = molpermolFA_Series
-
-            FAout=self._processBiomassFrame(FApd,1)
-            FAsyn = self._returnSynthesisEquation(FAin, FAout)
-
-        return LIPIDsyn, FAsyn
-
-    def LIPID(self,LIPID_wt_per_DCW,FA_CV): # CHO lipid
-        LIPIDpd= pd.read_excel(self.file2read, sheet_name='LIPIDsyn', usecols=self._commonReadCols ,convert_float=True)
-
-        #Lipid in
-        LIPIDin=self._processBiomassFrame(LIPIDpd, -1)
-
-        #MEMO :
-        #     gLIPIDpergDCW=LIPIDin.iloc[:,0]
-        #     MW=LIPIDin.iloc[:,1]
-        #     LIPIDin["mmol/gDCW"]= LIPID_wt_per_DCW*gLIPIDpergDCW/MW*1000
-        LIPIDin["mmol/gDCW"]= LIPID_wt_per_DCW*LIPIDin.iloc[:,0]/LIPIDin.iloc[:,1]*1000
-
-        LIPIDout = self._processBiomassFrame(LIPIDpd, 1)
-        for p_ind, p in enumerate(LIPIDout["Product"]):
-            if any(c in p.lower() for c in ("lipid", "backbone", "chain")):
-                LIPIDout.loc[p_ind,"mmol/gDCW.1"] = 1
-
-        LIPIDsyn=self._returnSynthesisEquation(LIPIDin,LIPIDout)
-
-        #FA synthesis
-        FApd= pd.read_excel(self.file2read, sheet_name='FATTYACIDsyn', usecols=self._commonReadCols ,convert_float=True)
-        FAin= self._processBiomassFrame(FApd,-1)
-        # random sampling
-        gpergFA_Series = FAin.iloc[:,0]
-        molpergFA_Series = gpergFA_Series / FAin["MW"].values
-        molpermolFA_Series = molpergFA_Series / molpergFA_Series.sum()
-
-        new_fa = list()
-        fa_i=0
-        while len(new_fa) < len(molpermolFA_Series):
-            coe_min = molpermolFA_Series[fa_i]*(1 - 2 * FA_CV)
-            coe_max = molpermolFA_Series[fa_i]*(1 + 2 * FA_CV)
-            if coe_min < 0 :
-                coe_min=0
-            rand_coe = random.uniform(coe_min, coe_max)
-            new_fa.append(rand_coe)
-            fa_i +=1
-        norm_new_fa = np.divide(new_fa, sum(new_fa))
-        FAin.loc[:,"mol/mol"] = norm_new_fa
-
-        FAout=self._processBiomassFrame(FApd,1)
-        FAsyn=self._returnSynthesisEquation(FAin,FAout)
-
-        FACOApd=pd.read_excel(self.file2read, sheet_name='FATTYACIDCOAsyn', usecols=self._commonReadCols ,convert_float=True)
-        FACOAin = self._processBiomassFrame(FACOApd, -1)
-        FACOAin.loc[:,'mol/mol']=norm_new_fa
-        FACOAout=self._processBiomassFrame(FACOApd, 1)
-        FACOAsyn = self._returnSynthesisEquation(FACOAin, FACOAout)
-        return LIPIDsyn, FAsyn, FACOAsyn
-
-    def ecoliBIOMASS(self, LPS_per_DCW, Murein_per_DCW):
+    def BIOMASS(self, LPS_per_DCW, Murein_per_DCW):
         BIOMASSpd = pd.read_excel(self.file2read, sheet_name='Biomass', usecols=self._commonReadCols, convert_float=True)
         BIOMASSin = self._processBiomassFrame(BIOMASSpd, -1)
         for s_i,s in enumerate(BIOMASSin["Reactant"]):
@@ -826,34 +511,6 @@ class randomBiomass():
 
         BIOMASSout = self._processBiomassFrame(BIOMASSpd, 1)
         BIOMASSsyn=self._returnSynthesisEquation(BIOMASSin,BIOMASSout)
-
-        return BIOMASSsyn
-
-    def yeastBIOMASS(self,yeast_norm_fac):
-        BIOMASSpd = pd.read_excel(self.file2read, sheet_name='Biomass', usecols=self._commonReadCols, convert_float=True)
-        BIOMASSin = self._processBiomassFrame(BIOMASSpd, -1)
-
-        for i,s in enumerate(BIOMASSin["Reactant"]):
-            if (BIOMASSin["Reactant"][i].lower() in ("atp","h2o","protein","dna","rna","carbohydrate","lipid")):
-                pass
-            else:
-                coeff = BIOMASSin.iloc[i, 4] * yeast_norm_fac
-                BIOMASSin.iloc[i,4] = coeff
-
-        # out
-        BIOMASSout = self._processBiomassFrame(BIOMASSpd, 1)
-
-        # PROTEIN BIOMASS
-        BIOMASSsyn =self._returnSynthesisEquation(BIOMASSin,BIOMASSout)
-        return BIOMASSsyn
-
-    def choBIOMASS(self):
-        BIOMASSpd = pd.read_excel(self.file2read, sheet_name='Biomass', usecols=self._commonReadCols, convert_float=True)
-        BIOMASSin = self._processBiomassFrame(_df=BIOMASSpd,_in_or_out=-1)
-
-        # out
-        BIOMASSout = self._processBiomassFrame(_df=BIOMASSpd,_in_or_out=1)
-        BIOMASSsyn = self._returnSynthesisEquation(BIOMASSin,BIOMASSout)
 
         return BIOMASSsyn
 
@@ -876,18 +533,10 @@ class randomFBA():
         self.protSheet=pd.read_excel(biomass_xls,"PROTsyn").drop(columns="Unnamed: 0")
         self.dnaSheet=pd.read_excel(biomass_xls,"DNAsyn").drop(columns="Unnamed: 0")
         self.rnaSheet=pd.read_excel(biomass_xls,"RNAsyn").drop(columns="Unnamed: 0")
+        self.carbSheet = pd.read_excel(biomass_xls, "CARBsyn").drop(columns="Unnamed: 0")
         self.lipidSheet=pd.read_excel(biomass_xls,"LIPIDsyn").drop(columns="Unnamed: 0")
-        try :
-            self.carbSheet=pd.read_excel(biomass_xls,"CARBsyn").drop(columns="Unnamed: 0")
-        except :
-            pass
-        try :
-            self.biomassSheet=pd.read_excel(biomass_xls,"biomass_ecoli").drop(columns="Unnamed: 0")
-        except :
-            try :
-                self.biomassSheet = pd.read_excel(biomass_xls, "biomass_yeast").drop(columns="Unnamed: 0")
-            except :
-                self.biomassSheet = pd.read_excel(biomass_xls, "biomass_cho").drop(columns="Unnamed: 0")
+        self.biomassSheet=pd.read_excel(biomass_xls,"biomass").drop(columns="Unnamed: 0")
+
 
     def saveResult(self):
 
@@ -908,7 +557,6 @@ class randomFBA():
             rxn2add=dict()
             for m_i, m in enumerate(["PROTsyn_modi",'DNAsyn_modi','RNAsyn_modi','CARBsyn_modi','LIPIDsyn_modi','biomass_modi']):
                 rxn2add[m]=eqn_list[m_i]
-
                 rxn=cobra.Reaction(m)
                 rxn.name=m
                 rxn.subsystem="Biomass"
@@ -919,24 +567,11 @@ class randomFBA():
 
 
 # Press the green button in the gutter to run the script.
-# if __name__ == '__main__':
-    # loc= '' #Edit this directory
-    # testfile1= loc+"Ecoli test1.xlsx"
-    # testfile2 = loc+"Scerevisiae test1.xlsx"
-    # testfile3 = loc+"CHO test1.xlsx"
+if __name__ == '__main__':
+    testfile1= "Ecoli test1.xlsx"
 
-
-    # ## 1 ##
-    # a=randomBiomass(organism='ecoli',file2read=testfile1,sampling_n=5000,macro_cols="A:W")
-    # b=a.exportBiomassEqns()
-
-    # # # 2 ##
-    # a1=randomBiomass(organism='yeast',file2read=testfile2,sampling_n=5000,macro_cols="A:T")
-    # b1=a1.exportBiomassEqns()
-
-    # # ## 3 ##
-    # a2=randomBiomass(organism='cho',file2read=testfile3,sampling_n=5000,macro_cols="A:Q")
-    # b2=a2.exportBiomassEqns()
+    a=randomBiomass(file2read=testfile1,sampling_n=5000,macro_cols="A:W")
+    b=a.exportBiomassEqns()
 
 
 
